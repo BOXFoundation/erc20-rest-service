@@ -1,5 +1,6 @@
 package io.blk.erc20;
 
+import java.io.File;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.web3j.crypto.WalletUtils;
 
 /**
  * Controller for our ERC-20 contract API.
@@ -25,6 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Api("ERC-20 token standard API")
 @RestController
 public class Controller {
+
+    private static final String WALLET_DIR = "/Users/xhliu/Library/Ethereum/priv_test/keystore";
 
     private final ContractService ContractService;
 
@@ -38,6 +42,17 @@ public class Controller {
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     NodeConfiguration config() {
         return ContractService.getConfig();
+    }
+
+    @ApiOperation(
+            value = "Generate new account",
+            notes = "Returns wallet file name, including hex encoded account address. For example, wallet file name "
+                    + "looks like `UTC--2018-03-16T05-09-05.79000000Z--3ae52004fd3e16c3b70b92ca0a9b382c786bf27e.json` "
+                    + "with address `0x3ae52004fd3e16c3b70b92ca0a9b382c786bf27e`"
+    )
+    @RequestMapping(value = "/newAccount/{encryptPassword}", method = RequestMethod.POST)
+    String newAccount(@PathVariable String encryptPassword) throws Exception {
+        return WalletUtils.generateFullNewWalletFile(encryptPassword, new File(WALLET_DIR));
     }
 
     @ApiOperation(
