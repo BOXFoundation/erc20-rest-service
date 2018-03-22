@@ -1,8 +1,10 @@
 package io.blk.erc20;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Observable;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
@@ -13,10 +15,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.stereotype.Service;
 
+import org.web3j.protocol.core.DefaultBlockParameter;
+import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.quorum.Quorum;
 import org.web3j.quorum.tx.ClientTransactionManager;
 import org.web3j.tx.TransactionManager;
+import rx.Subscription;
 
 import static org.web3j.tx.Contract.GAS_LIMIT;
 import static org.web3j.tx.ManagedTransaction.GAS_PRICE;
@@ -172,6 +177,21 @@ public class ContractService {
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public List<TransferEventResponse> listTransactions(String contractAddress, String ownerAddress) {
+        HumanStandardToken humanStandardToken = load(contractAddress);
+
+        List<TransferEventResponse> result = new ArrayList<>();
+        Subscription s = humanStandardToken.transferEventObservable(DefaultBlockParameterName.EARLIEST, DefaultBlockParameterName.LATEST)
+                 .subscribe(txEvent -> {
+                     // found my tx
+                     if (txEvent._from.equals(ownerAddress) || txEvent._to.equals(ownerAddress)) {
+                         result.add(new TransferEventResponse(txEvent));
+                     }
+                 });
+        s.unsubscribe();
+        return result;
     }
 
     private HumanStandardToken load(String contractAddress, List<String> privateFor) {

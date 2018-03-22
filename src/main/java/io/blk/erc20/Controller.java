@@ -208,6 +208,14 @@ public class Controller {
                 contractAddress, ownerAddress, spenderAddress);
     }
 
+    @ApiOperation("Returns a list of token transactions for a given account")
+    @RequestMapping(value = "/{contractAddress}/listtx/{ownerAddress}", method = RequestMethod.GET)
+    List<ContractService.TransferEventResponse> listTransactions(
+            @PathVariable String contractAddress,
+            @PathVariable String ownerAddress) {
+        return ContractService.listTransactions(contractAddress, ownerAddress);
+    }
+
     private static List<String> extractPrivateFor(HttpServletRequest request) {
         String privateFor = request.getHeader("privateFor");
         if (privateFor == null) {
