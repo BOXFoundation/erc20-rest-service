@@ -14,4 +14,6 @@ public class NodeConfiguration {
 
     private String nodeEndpoint;
     private String fromAddress;
+    private String encryptPassphrase;
+    private String keystoreDir;
 }

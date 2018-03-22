@@ -4,7 +4,6 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Observable;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
@@ -15,9 +14,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.stereotype.Service;
 
-import org.web3j.protocol.core.DefaultBlockParameter;
+import org.web3j.protocol.admin.Admin;
+import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
+import org.web3j.protocol.http.HttpService;
 import org.web3j.quorum.Quorum;
 import org.web3j.quorum.tx.ClientTransactionManager;
 import org.web3j.tx.TransactionManager;
@@ -37,9 +38,15 @@ public class ContractService {
     private final NodeConfiguration nodeConfiguration;
 
     @Autowired
-    public ContractService(Quorum quorum, NodeConfiguration nodeConfiguration) {
+    public ContractService(Quorum quorum, NodeConfiguration nodeConfiguration) throws Exception {
         this.quorum = quorum;
         this.nodeConfiguration = nodeConfiguration;
+
+        Admin admin = Admin.build(new HttpService(nodeConfiguration.getNodeEndpoint()));
+        PersonalUnlockAccount personalUnlockAccount = admin.personalUnlockAccount(nodeConfiguration.getFromAddress(), nodeConfiguration.getEncryptPassphrase()).send();
+        if (!personalUnlockAccount.accountUnlocked()) {
+            throw new Exception("Unlocking account failed");
+        }
     }
 
     public NodeConfiguration getConfig() {

@@ -27,9 +27,6 @@ import org.web3j.crypto.WalletUtils;
 @Api("ERC-20 token standard API")
 @RestController
 public class Controller {
-
-    private static final String WALLET_DIR = "/Users/xhliu/Library/Ethereum/priv_test/keystore";
-
     private final ContractService ContractService;
 
     @Autowired
@@ -45,14 +42,17 @@ public class Controller {
     }
 
     @ApiOperation(
-            value = "Generate new account",
-            notes = "Returns wallet file name, including hex encoded account address. For example, wallet file name "
-                    + "looks like `UTC--2018-03-16T05-09-05.79000000Z--3ae52004fd3e16c3b70b92ca0a9b382c786bf27e.json` "
-                    + "with address `0x3ae52004fd3e16c3b70b92ca0a9b382c786bf27e`"
+            value = "Generate a new account",
+            notes = "Returns hex encoded address of the new account"
     )
-    @RequestMapping(value = "/newAccount/{encryptPassword}", method = RequestMethod.POST)
-    String newAccount(@PathVariable String encryptPassword) throws Exception {
-        return WalletUtils.generateFullNewWalletFile(encryptPassword, new File(WALLET_DIR));
+    @RequestMapping(value = "/newAccount", method = RequestMethod.POST)
+    String newAccount() throws Exception {
+        // wallet file is named like `UTC--2018-03-16T05-09-05.79000000Z--3ae52004fd3e16c3b70b92ca0a9b382c786bf27e.json`
+        String walletFileName = WalletUtils.generateFullNewWalletFile(ContractService.getConfig().getEncryptPassphrase(),
+                new File(ContractService.getConfig().getKeystoreDir()));
+        // in which `3ae52004fd3e16c3b70b92ca0a9b382c786bf27e` is address
+        String[] fetchAddress = walletFileName.split("--");
+        return "0x" + fetchAddress[fetchAddress.length-1].split("\\.")[0];
     }
 
     @ApiOperation(
