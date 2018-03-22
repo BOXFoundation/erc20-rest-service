@@ -94,3 +94,10 @@ docker run -p ${PORT}:${PORT} -v "$PWD/logs":/logs \
     -e PORT="$PORT" \
     blk-io/erc20-service
 ```
+
+## TODOs
+- Unlock account before transacting
+- Database layer to store user accounts
+- Add timestamp & txid in tx history
+- HD wallet
+- QR code
