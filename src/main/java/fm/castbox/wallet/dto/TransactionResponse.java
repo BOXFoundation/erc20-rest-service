@@ -1,4 +1,4 @@
-package io.blk.erc20.dto;
+package fm.castbox.wallet.dto;
 
 import lombok.Getter;
 import lombok.Setter;

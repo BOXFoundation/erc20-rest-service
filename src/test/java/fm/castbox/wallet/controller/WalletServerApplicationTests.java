@@ -1,10 +1,10 @@
-package io.blk.erc20.controller;
+package fm.castbox.wallet.controller;
 
 import java.math.BigInteger;
 import java.util.Arrays;
 
-import io.blk.erc20.config.NodeConfiguration;
-import io.blk.erc20.dto.TransactionResponse;
+import fm.castbox.wallet.config.NodeConfiguration;
+import fm.castbox.wallet.dto.TransactionResponse;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +27,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
-public class ControllerIT {
+public class WalletServerApplicationTests {
 
     // key2
     private static final String OTHER_ACCOUNT = "ca843569e3427144cead5e4d5999a3d0ccf92b8e";

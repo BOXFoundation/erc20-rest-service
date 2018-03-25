@@ -1,6 +1,6 @@
-package io.blk.erc20;
+package fm.castbox.wallet;
 
-import io.blk.erc20.config.NodeConfiguration;
+import fm.castbox.wallet.config.NodeConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
@@ -17,10 +17,10 @@ import org.web3j.quorum.Quorum;
  * Our main application class.
  */
 @SpringBootApplication
-public class Application {
+public class WalletServerApplication {
 
     public static void main(String[] args) {
-        SpringApplication application = new SpringApplication(Application.class);
+        SpringApplication application = new SpringApplication(WalletServerApplication.class);
         application.setBannerMode(Banner.Mode.OFF);
         application.run(args);
     }

@@ -1,4 +1,4 @@
-package io.blk.erc20.config;
+package fm.castbox.wallet.config;
 
 import com.google.common.base.Predicates;
 import org.springframework.context.annotation.Bean;

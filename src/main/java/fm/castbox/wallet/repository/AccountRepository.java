@@ -1,6 +1,6 @@
-package io.blk.erc20.repository;
+package fm.castbox.wallet.repository;
 
-import io.blk.erc20.domain.Account;
+import fm.castbox.wallet.domain.Account;
 import org.springframework.data.repository.CrudRepository;
 
 import java.util.List;

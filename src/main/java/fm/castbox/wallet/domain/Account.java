@@ -1,4 +1,4 @@
-package io.blk.erc20.domain;
+package fm.castbox.wallet.domain;
 
 import lombok.Data;
 

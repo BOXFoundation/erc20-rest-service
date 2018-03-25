@@ -1,4 +1,4 @@
-package io.blk.erc20.service;
+package fm.castbox.wallet.service;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
-import io.blk.erc20.config.NodeConfiguration;
-import io.blk.erc20.dto.TransactionResponse;
-import io.blk.erc20.generated.HumanStandardToken;
+import fm.castbox.wallet.generated.HumanStandardToken;
+import fm.castbox.wallet.config.NodeConfiguration;
+import fm.castbox.wallet.dto.TransactionResponse;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;

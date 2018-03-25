@@ -1,4 +1,4 @@
-package io.blk.erc20.controller;
+package fm.castbox.wallet.controller;
 
 import java.io.File;
 import java.math.BigInteger;
@@ -7,11 +7,11 @@ import java.util.Collections;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 
-import io.blk.erc20.domain.Account;
-import io.blk.erc20.repository.AccountRepository;
-import io.blk.erc20.config.NodeConfiguration;
-import io.blk.erc20.dto.TransactionResponse;
-import io.blk.erc20.service.ContractService;
+import fm.castbox.wallet.domain.Account;
+import fm.castbox.wallet.repository.AccountRepository;
+import fm.castbox.wallet.config.NodeConfiguration;
+import fm.castbox.wallet.dto.TransactionResponse;
+import fm.castbox.wallet.service.ContractService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.web3j.crypto.WalletUtils;
-import rx.Subscription;
 
 /**
  * Controller for our ERC-20 contract API.
@@ -43,7 +42,7 @@ public class Controller {
         this.ContractService = ContractService;
     }
 
-    @ApiOperation("Application configuration")
+    @ApiOperation("WalletServerApplication configuration")
     @RequestMapping(value = "/config", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     NodeConfiguration config() {
@@ -141,7 +140,7 @@ public class Controller {
         }
 
         // transfer from main account, not fromAccount
-        TransactionResponse<io.blk.erc20.service.ContractService.TransferEventResponse> txResponse =
+        TransactionResponse<fm.castbox.wallet.service.ContractService.TransferEventResponse> txResponse =
             ContractService.transfer(
                 extractPrivateFor(request),
                 contractAddress,

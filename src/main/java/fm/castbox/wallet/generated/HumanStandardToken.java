@@ -1,4 +1,4 @@
-package io.blk.erc20.generated;
+package fm.castbox.wallet.generated;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
