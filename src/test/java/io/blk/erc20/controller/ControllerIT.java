@@ -1,10 +1,9 @@
-package io.blk.erc20;
+package io.blk.erc20.controller;
 
 import java.math.BigInteger;
 import java.util.Arrays;
 
 import io.blk.erc20.config.NodeConfiguration;
-import io.blk.erc20.controller.Controller;
 import io.blk.erc20.dto.TransactionResponse;
 import org.junit.Test;
 import org.junit.runner.RunWith;
