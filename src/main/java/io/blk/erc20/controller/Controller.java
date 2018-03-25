@@ -1,4 +1,4 @@
-package io.blk.erc20;
+package io.blk.erc20.controller;
 
 import java.io.File;
 import java.math.BigInteger;
@@ -7,6 +7,11 @@ import java.util.Collections;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 
+import io.blk.erc20.domain.Account;
+import io.blk.erc20.repository.AccountRepository;
+import io.blk.erc20.config.NodeConfiguration;
+import io.blk.erc20.dto.TransactionResponse;
+import io.blk.erc20.service.ContractService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
@@ -20,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.web3j.crypto.WalletUtils;
+import rx.Subscription;
 
 /**
  * Controller for our ERC-20 contract API.
@@ -28,6 +34,9 @@ import org.web3j.crypto.WalletUtils;
 @RestController
 public class Controller {
     private final ContractService ContractService;
+
+    @Autowired
+    private AccountRepository accountRepository;
 
     @Autowired
     public Controller(ContractService ContractService) {
@@ -52,7 +61,10 @@ public class Controller {
                 new File(ContractService.getConfig().getKeystoreDir()));
         // in which `3ae52004fd3e16c3b70b92ca0a9b382c786bf27e` is address
         String[] fetchAddress = walletFileName.split("--");
-        return "0x" + fetchAddress[fetchAddress.length-1].split("\\.")[0];
+        String address = "0x" + fetchAddress[fetchAddress.length-1].split("\\.")[0];
+        // initial balance 0
+        accountRepository.save(new Account(address, 0));
+        return address;
     }
 
     @ApiOperation(
@@ -121,12 +133,23 @@ public class Controller {
             HttpServletRequest request,
             @PathVariable String contractAddress,
             @RequestBody TransferFromRequest transferFromRequest) throws Exception {
-        return ContractService.transferFrom(
+        Account fromAccount = findByAddress(transferFromRequest.getFrom());
+        long transferValue = transferFromRequest.getValue().longValueExact();
+
+        if (fromAccount.getBalance() < transferValue) {
+            throw new Exception("Insufficient fund");
+        }
+
+        // transfer from main account, not fromAccount
+        TransactionResponse<io.blk.erc20.service.ContractService.TransferEventResponse> txResponse =
+            ContractService.transfer(
                 extractPrivateFor(request),
                 contractAddress,
-                transferFromRequest.getFrom(),
                 transferFromRequest.getTo(),
                 transferFromRequest.getValue());
+        fromAccount.setBalance(fromAccount.getBalance() - transferValue);
+        accountRepository.save(fromAccount);
+        return txResponse;
     }
 
     @ApiOperation("Get decimal precision of tokens")
@@ -147,7 +170,8 @@ public class Controller {
     long balanceOf(
             @PathVariable String contractAddress,
             @PathVariable String ownerAddress) throws Exception {
-        return ContractService.balanceOf(contractAddress, ownerAddress);
+
+        return findByAddress(ownerAddress).getBalance();
     }
 
     @ApiOperation("Get token symbol")
@@ -223,6 +247,18 @@ public class Controller {
         } else {
             return Arrays.asList(privateFor.split(","));
         }
+    }
+
+    private Account findByAddress(String address) throws Exception {
+        List<Account> accounts = accountRepository.findByAddress(address);
+
+        if (accounts.isEmpty()) {
+            throw new Exception("Account with address " + address + " does not exist");
+        }
+        if (accounts.size() > 1) {
+            throw new Exception("Multiple accounts with address " + address);
+        }
+        return accounts.get(0);
     }
 
     @Data

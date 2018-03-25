@@ -1,6 +1,7 @@
 package io.blk.erc20;
 
 import com.google.common.base.Predicates;
+import io.blk.erc20.config.NodeConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;

@@ -1,4 +1,4 @@
-package io.blk.erc20;
+package io.blk.erc20.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

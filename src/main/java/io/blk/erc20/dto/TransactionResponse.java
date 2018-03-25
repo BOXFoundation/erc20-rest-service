@@ -1,4 +1,4 @@
-package io.blk.erc20;
+package io.blk.erc20.dto;
 
 import lombok.Getter;
 import lombok.Setter;
