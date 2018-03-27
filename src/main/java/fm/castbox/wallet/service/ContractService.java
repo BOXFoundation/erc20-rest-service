@@ -44,6 +44,8 @@ public class ContractService {
 
     private final NodeConfiguration nodeConfiguration;
 
+    private final Admin admin;
+
     @Autowired
     private AccountRepository accountRepository;
 
@@ -52,7 +54,7 @@ public class ContractService {
         this.quorum = quorum;
         this.nodeConfiguration = nodeConfiguration;
 
-        Admin admin = Admin.build(new HttpService(nodeConfiguration.getNodeEndpoint()));
+        admin = Admin.build(new HttpService(nodeConfiguration.getNodeEndpoint()));
         PersonalUnlockAccount personalUnlockAccount = admin.personalUnlockAccount(nodeConfiguration.getFromAddress(), nodeConfiguration.getEncryptPassphrase()).send();
         if (!personalUnlockAccount.accountUnlocked()) {
             throw new Exception("Unlocking account failed");
@@ -105,6 +107,13 @@ public class ContractService {
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public String newAccount() throws Exception {
+        String address = admin.personalNewAccount(nodeConfiguration.getEncryptPassphrase()).send().getAccountId();
+        // initial balance 0
+        accountRepository.save(new Account(address, 0));
+        return address;
     }
 
     public String name(String contractAddress) throws Exception {

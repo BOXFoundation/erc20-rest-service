@@ -16,5 +16,4 @@ public class NodeConfiguration {
     private String fromAddress;
     private String contractAddress;
     private String encryptPassphrase;
-    private String keystoreDir;
 }

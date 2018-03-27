@@ -19,6 +19,3 @@ contractAddress: "0x091e99d1fbf1d18b7c42aeb6938dec588b2aae9c"
 
 # passphrase to encrypt key files
 encryptPassphrase: "password"
-
-# directory where ethereum client (e.g., geth) store key files
-keystoreDir: "/Users/xhliu/Library/Ethereum/priv_test/keystore"
