@@ -245,6 +245,12 @@ public class Controller {
         ContractService.unsubscribeToContractTransferEvents(contractAddress);
     }
 
+    @ApiOperation(value = "List all subscribed contract addresses")
+    @RequestMapping(value = "/listContractSubscriptions", method = RequestMethod.GET)
+    List<String> listContractSubscriptions() throws Exception {
+        return ContractService.listContractSubscriptions();
+    }
+
     private static List<String> extractPrivateFor(HttpServletRequest request) {
         String privateFor = request.getHeader("privateFor");
         if (privateFor == null) {

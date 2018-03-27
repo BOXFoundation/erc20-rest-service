@@ -114,6 +114,10 @@ public class ContractService {
         System.out.println("Unsubscribed from contract " + contractAddress);
     }
 
+    public List<String> listContractSubscriptions() throws Exception {
+        return new ArrayList<>(contractSubscriptions.keySet());
+    }
+
     public NodeConfiguration getConfig() {
         return nodeConfiguration;
     }
