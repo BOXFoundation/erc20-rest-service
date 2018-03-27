@@ -7,18 +7,22 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
+import fm.castbox.wallet.domain.Account;
 import fm.castbox.wallet.generated.HumanStandardToken;
 import fm.castbox.wallet.config.NodeConfiguration;
 import fm.castbox.wallet.dto.TransactionResponse;
+import fm.castbox.wallet.repository.AccountRepository;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.stereotype.Service;
 
+import org.web3j.protocol.Web3j;
 import org.web3j.protocol.admin.Admin;
 import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
 
+import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
@@ -41,6 +45,9 @@ public class ContractService {
     private final NodeConfiguration nodeConfiguration;
 
     @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
     public ContractService(Quorum quorum, NodeConfiguration nodeConfiguration) throws Exception {
         this.quorum = quorum;
         this.nodeConfiguration = nodeConfiguration;
@@ -50,6 +57,34 @@ public class ContractService {
         if (!personalUnlockAccount.accountUnlocked()) {
             throw new Exception("Unlocking account failed");
         }
+
+        HumanStandardToken humanStandardToken = load(nodeConfiguration.getContractAddress());
+
+        Web3j web3j = Web3j.build(new HttpService(nodeConfiguration.getNodeEndpoint()));
+        web3j.blockObservable(false).subscribe(block -> {
+            BigInteger blockNum = block.getBlock().getNumber();
+            DefaultBlockParameter blockParameter = DefaultBlockParameter.valueOf(blockNum);
+            System.out.println("Received block: " + blockNum);
+            Subscription s = humanStandardToken.transferEventObservable(blockParameter, blockParameter)
+                    .subscribe(txEvent -> {
+                        System.out.println(" transfer event " + "\n"
+                                + " from    : " + txEvent._from + "\n"
+                                + " to      : " + txEvent._to + "\n"
+                                + " value   : " + txEvent._value);
+                        List<Account> accounts = accountRepository.findByAddress(txEvent._to);
+                        if (accounts.isEmpty()) {
+                            return;
+                        }
+                        if (accounts.size() > 1) {
+                            System.out.println("Multiple accounts with address " + txEvent._to);
+                            return;
+                        }
+                        Account toAccount = accounts.get(0);
+                        long transferValue = txEvent._value.longValueExact();
+                        toAccount.setBalance(toAccount.getBalance() + transferValue);
+                        accountRepository.save(toAccount);
+                    });
+        }, Throwable::printStackTrace);
     }
 
     public NodeConfiguration getConfig() {
