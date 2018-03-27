@@ -1,6 +1,5 @@
 package fm.castbox.wallet.controller;
 
-import java.io.File;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.web3j.crypto.WalletUtils;
 
 /**
  * Controller for our ERC-20 contract API.
