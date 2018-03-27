@@ -14,8 +14,6 @@ public class Account {
     private String address;
     private long balance;
 
-    private Account() {}
-
     public Account(String address, long balance) {
         this.address = address;
         this.balance = balance;
