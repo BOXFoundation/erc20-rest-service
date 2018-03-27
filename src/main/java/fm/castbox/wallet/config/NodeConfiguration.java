@@ -14,6 +14,5 @@ public class NodeConfiguration {
 
     private String nodeEndpoint;
     private String fromAddress;
-    private String contractAddress;
     private String encryptPassphrase;
 }

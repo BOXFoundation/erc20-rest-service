@@ -3,6 +3,7 @@ package fm.castbox.wallet.service;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
@@ -14,6 +15,7 @@ import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.repository.AccountRepository;
 import lombok.Getter;
 import lombok.Setter;
+import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.stereotype.Service;
@@ -46,6 +48,10 @@ public class ContractService {
 
     private final Admin admin;
 
+    private final Web3j web3j;
+
+    private HashMap<String /* contract address */, Subscription /* contract event subscription */> contractSubscriptions = new HashMap<>();
+
     @Autowired
     private AccountRepository accountRepository;
 
@@ -60,14 +66,21 @@ public class ContractService {
             throw new Exception("Unlocking account failed");
         }
 
-        HumanStandardToken humanStandardToken = load(nodeConfiguration.getContractAddress());
+        web3j = Web3j.build(new HttpService(nodeConfiguration.getNodeEndpoint()));
+    }
 
-        Web3j web3j = Web3j.build(new HttpService(nodeConfiguration.getNodeEndpoint()));
-        web3j.blockObservable(false).subscribe(block -> {
+    public void subscribeToContractTransferEvents(String contractAddress) throws Exception {
+        if (contractSubscriptions.containsKey(contractAddress)) {
+            System.out.println("Already subscribed to contract " + contractAddress);
+            return;
+        }
+
+        HumanStandardToken humanStandardToken = load(contractAddress);
+        Subscription sub = web3j.blockObservable(false).subscribe(block -> {
             BigInteger blockNum = block.getBlock().getNumber();
             DefaultBlockParameter blockParameter = DefaultBlockParameter.valueOf(blockNum);
             System.out.println("Received block: " + blockNum);
-            Subscription s = humanStandardToken.transferEventObservable(blockParameter, blockParameter)
+            humanStandardToken.transferEventObservable(blockParameter, blockParameter)
                     .subscribe(txEvent -> {
                         System.out.println(" transfer event " + "\n"
                                 + " from    : " + txEvent._from + "\n"
@@ -87,6 +100,18 @@ public class ContractService {
                         accountRepository.save(toAccount);
                     });
         }, Throwable::printStackTrace);
+        contractSubscriptions.put(contractAddress, sub);
+        System.out.println("Subscribed to contract " + contractAddress);
+    }
+
+    public void unsubscribeToContractTransferEvents(String contractAddress) throws Exception {
+        if (!contractSubscriptions.containsKey(contractAddress)) {
+            System.out.println("Trying to unsubscribe from non-subscribed contract " + contractAddress);
+            return;
+        }
+        Subscription sub = contractSubscriptions.remove(contractAddress);
+        sub.unsubscribe();
+        System.out.println("Unsubscribed from contract " + contractAddress);
     }
 
     public NodeConfiguration getConfig() {

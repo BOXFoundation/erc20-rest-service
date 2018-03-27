@@ -14,8 +14,5 @@ nodeEndpoint: http://localhost:8081
 # Note - this address must be already unlocked in the client
 fromAddress: "0xf6de496ec5601d74937ddd77af09c8cd4ba41ab5"
 
-# Our token contract address
-contractAddress: "0x091e99d1fbf1d18b7c42aeb6938dec588b2aae9c"
-
 # passphrase to encrypt key files
 encryptPassphrase: "password"

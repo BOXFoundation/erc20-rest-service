@@ -229,6 +229,22 @@ public class Controller {
         return ContractService.listTransactions(contractAddress, ownerAddress);
     }
 
+    @ApiOperation(
+            value = "Subscribe to token transfer events of a specific contract address",
+            notes = "Which can be unsubscribed later")
+    @RequestMapping(value = "/subscribe/{contractAddress}", method = RequestMethod.POST)
+    void subscribeToContractTransferEvents(@PathVariable String contractAddress) throws Exception {
+        ContractService.subscribeToContractTransferEvents(contractAddress);
+    }
+
+    @ApiOperation(
+            value = "Unsubscribe to token transfer events of a specific contract address",
+            notes = "No longer receive this contract's transfer event")
+    @RequestMapping(value = "/unsubscribe/{contractAddress}", method = RequestMethod.POST)
+    void ubsubscribeToContractTransferEvents(@PathVariable String contractAddress) throws Exception {
+        ContractService.unsubscribeToContractTransferEvents(contractAddress);
+    }
+
     private static List<String> extractPrivateFor(HttpServletRequest request) {
         String privateFor = request.getHeader("privateFor");
         if (privateFor == null) {
