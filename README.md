@@ -61,8 +61,9 @@ with, and querying state of ERC-20 tokens.
     Upon successful deployment, the contract address will be returned, which can be used to interact with the contract.
 1. Subscribe to token transfer events of a specific contract address
 `POST /subscribe/{contractAddress}`
+1. Get some initial coins for users
+    `GET /{userId}/address`: Get user's address. Generate a few users and change their balances to positive in mysql directly so they can start transacting.
 1. Other APIs for wallet integration
-- `GET /{userId}/address`: Get user's address
 - `GET /{contractAddress}/balanceOf/{userId}`: Get token balance of a user
 - `POST /{contractAddress}/transferFrom`: Transfer a user's tokens to an address
 - `GET /{contractAddress}/listtx/{userId}`: Returns a list of token transactions for a given user
