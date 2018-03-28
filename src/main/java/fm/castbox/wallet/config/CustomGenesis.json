@@ -7,6 +7,6 @@
     "difficulty": "0x400",
     "mixhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "coinbase": "0xf6de496ec5601d74937ddd77af09c8cd4ba41ab5",
-    "alloc": {"0xf6de496ec5601d74937ddd77af09c8cd4ba41ab5": {"balance": "750"}},
+    "alloc": {"0xf6de496ec5601d74937ddd77af09c8cd4ba41ab5": {"balance": "75000000000000000000"}},
     "config": {}
 }
