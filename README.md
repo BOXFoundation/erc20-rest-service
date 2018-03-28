@@ -14,24 +14,6 @@ a private transaction, you populate a HTTP header name *privateFor* with a comma
 list of public keys
 
 
-## Build
-
-To build a runnable jar file:
-
-```bash
-./gradlew clean build
-```
-
-## Run
-
-Using Java 1.8+:
-
-```bash
-java -jar build/libs/azure-demo-0.1.jar 
-```
-
-By default the application will log to a file named erc20-web3j.log. 
-
 ## To run locally
 - Run `mysql` and initialize it.
 ```
@@ -39,18 +21,20 @@ mysql> create database db_example; -- Create the new database
 mysql> create user 'springuser'@'localhost' identified by 'ThePassword'; -- Creates the user
 mysql> grant all on db_example.* to 'springuser'@'localhost'; -- Gives all the privileges to the new user on the newly created database
 ```
-- Run an Ethereum full node/client, for example
+
+- Run an Ethereum full node/client and start a private testnet, for example
+```bash
+// init with genesis block
+> geth --identity "MyNodeName" --rpc --rpcport "8081" --rpccorsdomain "*" --datadir priv_test --port "30303" --nodiscover --rpcapi "db,eth,net,web3,personal" --networkid 1999 init path/to/fm/castbox/wallet/config/CustomGenesis.json
+// launch geth
+> geth --identity "MyNodeName" --rpc --rpcport "8081" --rpccorsdomain "*" --datadir priv_test --port "30303" --nodiscover --rpcapi "db,eth,net,web3,personal" --networkid 1999
 ```
-geth --identity "MyNodeName" --rpc --rpcport "8081" --rpccorsdomain "*" --datadir priv_test --port "30303" --nodiscover --rpcapi "db,eth,net,web3,personal" --networkid 1999
-```
-- Update `config/application.yml` and `application.properties` under `resources/` to your local settings. For example, 
-```
-# Endpoint of an Ethereum or Quorum node we wish to use. 
-# To use IPC simply provide a file path to the socket, such as /path/to/geth.ipc
-nodeEndpoint=http://localhost:22000
-# The Ethereum or Quorum address we wish to use when transacting.
-# Note - this address must be already unlocked in the client
-fromAddress=0xed9d02e382b34818e88b88a309c7fe71e65f419d
+Copy key file `fm/castbox/wallet/config/UTC--2018-03-13T18-27-23.961533000Z--f6de496ec5601d74937ddd77af09c8cd4ba41ab5` to datadir `priv_test/`. This is needed to unlock our main wallet account to transact.
+
+- Launch wallet server
+Update `config/application.yml` and `application.properties` under `resources/` to your local settings (e.g., mysql port number) if they differ from default settings.
+```bash
+./gradlew bootRun
 ```
 
 ## Usage
@@ -63,12 +47,22 @@ with, and querying state of ERC-20 tokens.
 
 ![alt text](https://github.com/blk-io/erc20-rest-service/raw/master/images/full-swagger-ui.png "Swagger UI screen capture")
 
+1. Deploy our ERC-20 token contract
 
-## TODOs
-- Unlock account before transacting
-- Database layer to store user accounts
-- Add timestamp & txid in tx history
-- HD wallet
-- QR code (front end)
-- Set tx fee/gas like in Mist
-- Sanitize address
+    `POST /deploy`
+    ```
+    {
+      "decimalUnits": 0,
+      "initialAmount": 1000,
+      "tokenName": "BOX token",
+      "tokenSymbol": "BOX"
+    }
+    ```
+    Upon successful deployment, the contract address will be returned, which can be used to interact with the contract.
+1. Subscribe to token transfer events of a specific contract address
+`POST /subscribe/{contractAddress}`
+1. Other APIs for wallet integration
+- `GET /{userId}/address`: Get user's address
+- `GET /{contractAddress}/balanceOf/{userId}`: Get token balance of a user
+- `POST /{contractAddress}/transferFrom`: Transfer a user's tokens to an address
+- `GET /{contractAddress}/listtx/{userId}`: Returns a list of token transactions for a given user
