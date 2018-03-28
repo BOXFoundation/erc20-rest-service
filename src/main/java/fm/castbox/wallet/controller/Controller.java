@@ -7,6 +7,7 @@ import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 
 import fm.castbox.wallet.config.NodeConfiguration;
+import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.service.ContractService;
 import io.swagger.annotations.Api;
@@ -204,12 +205,12 @@ public class Controller {
                 contractAddress, ownerAddress, spenderAddress);
     }
 
-    @ApiOperation("Returns a list of token transactions for a given account")
-    @RequestMapping(value = "/{contractAddress}/listtx/{ownerAddress}", method = RequestMethod.GET)
-    List<ContractService.TransferEventResponse> listTransactions(
+    @ApiOperation("Returns a list of token transactions for a given user")
+    @RequestMapping(value = "/{contractAddress}/listtx/{userId}", method = RequestMethod.GET)
+    List<Transaction> listTransactions(
             @PathVariable String contractAddress,
-            @PathVariable String ownerAddress) {
-        return ContractService.listTransactions(contractAddress, ownerAddress);
+            @PathVariable String userId) throws Exception {
+        return ContractService.listTransactions(contractAddress, userId);
     }
 
     @ApiOperation(

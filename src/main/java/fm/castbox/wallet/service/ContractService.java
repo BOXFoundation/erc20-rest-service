@@ -9,13 +9,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import fm.castbox.wallet.domain.Account;
+import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.generated.HumanStandardToken;
 import fm.castbox.wallet.config.NodeConfiguration;
 import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.repository.AccountRepository;
+import fm.castbox.wallet.repository.TransactionRepository;
 import lombok.Getter;
 import lombok.Setter;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.stereotype.Service;
@@ -56,6 +57,9 @@ public class ContractService {
     private AccountRepository accountRepository;
 
     @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
     public ContractService(Quorum quorum, NodeConfiguration nodeConfiguration) throws Exception {
         this.quorum = quorum;
         this.nodeConfiguration = nodeConfiguration;
@@ -82,7 +86,8 @@ public class ContractService {
             System.out.println("Received block: " + blockNum);
             humanStandardToken.transferEventObservable(blockParameter, blockParameter)
                     .subscribe(txEvent -> {
-                        System.out.println(" transfer event " + "\n"
+                        System.out.println(
+                                  " transfer event :" + txEvent._transactionHash + "\n"
                                 + " from    : " + txEvent._from + "\n"
                                 + " to      : " + txEvent._to + "\n"
                                 + " value   : " + txEvent._value);
@@ -98,6 +103,11 @@ public class ContractService {
                         long transferValue = txEvent._value.longValueExact();
                         toAccount.setBalance(toAccount.getBalance() + transferValue);
                         accountRepository.save(toAccount);
+                        // Only append tx not saved before. Otherwise previous send tx will be overwritten with main account as from address
+                        String txId = txEvent._transactionHash;
+                        if (!transactionRepository.existsById(txId)) {
+                            transactionRepository.save(new Transaction(txId, txEvent._from, txEvent._to, txEvent._value.longValueExact()));
+                        }
                     });
         }, Throwable::printStackTrace);
         contractSubscriptions.put(contractAddress, sub);
@@ -216,6 +226,7 @@ public class ContractService {
                     transfer(privateFor, contractAddress, toAddress, value);
             fromAccount.setBalance(fromAccount.getBalance() - transferValue);
             accountRepository.save(fromAccount);
+            transactionRepository.save(new Transaction(txResponse.getTransactionHash(), fromAccount.getAddress(), toAddress, transferValue));
             return txResponse;
    }
 
@@ -294,19 +305,15 @@ public class ContractService {
         }
     }
 
-    public List<TransferEventResponse> listTransactions(String contractAddress, String ownerAddress) {
-        HumanStandardToken humanStandardToken = load(contractAddress);
-
-        List<TransferEventResponse> result = new ArrayList<>();
-        Subscription s = humanStandardToken.transferEventObservable(DefaultBlockParameterName.EARLIEST, DefaultBlockParameterName.LATEST)
-                 .subscribe(txEvent -> {
-                     // found my tx
-                     if (txEvent._from.equals(ownerAddress) || txEvent._to.equals(ownerAddress)) {
-                         result.add(new TransferEventResponse(txEvent));
-                     }
-                 });
-        s.unsubscribe();
-        return result;
+    public List<Transaction> listTransactions(String contractAddress, String userId) throws Exception {
+        List<Account> accounts = accountRepository.findByUserId(userId);
+        if (accounts.size() > 1) {
+            throw new Exception("Multiple accounts with user id " + userId);
+        }
+        if (accounts.isEmpty()) {
+            throw new Exception("Account with user id " + userId + " does not exist");
+        }
+        return transactionRepository.findByAddress(accounts.get(0).getAddress());
     }
 
     private HumanStandardToken load(String contractAddress, List<String> privateFor) {

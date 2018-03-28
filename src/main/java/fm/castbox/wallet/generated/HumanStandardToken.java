@@ -78,6 +78,7 @@ public class HumanStandardToken extends Contract {
                 typedResponse._from = (String) eventValues.getIndexedValues().get(0).getValue();
                 typedResponse._to = (String) eventValues.getIndexedValues().get(1).getValue();
                 typedResponse._value = (BigInteger) eventValues.getNonIndexedValues().get(0).getValue();
+                typedResponse._transactionHash = log.getTransactionHash();
                 return typedResponse;
             }
         });
@@ -236,6 +237,8 @@ public class HumanStandardToken extends Contract {
         public String _to;
 
         public BigInteger _value;
+
+        public String _transactionHash;
     }
 
     public static class ApprovalEventResponse {
