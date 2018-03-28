@@ -1,43 +1,48 @@
-# ERC-20 RESTful service
+# Wallet RESTful APIs
 
-This application provides a RESTful service for creating and managing 
-[ERC-20 tokens](https://github.com/ethereum/EIPs/issues/20). 
-It has been built using [Spring Boot](https://projects.spring.io/spring-boot/), and 
-[web3j](https://web3j.io).
+This application provides a RESTful service for creating and managing [ERC-20 tokens](https://github.com/ethereum/EIPs/issues/20). It has been built using [Spring Boot](https://projects.spring.io/spring-boot/), and [web3j](https://web3j.io).
 
-It works with both [Geth](https://github.com/ethereum/go-ethereum), 
-[Parity](https://github.com/paritytech/parity), and 
-[Quorum](https://github.com/jpmorganchase/quorum).
+It works with both [Geth](https://github.com/ethereum/go-ethereum), [Parity](https://github.com/paritytech/parity), and [Quorum](https://github.com/jpmorganchase/quorum).
 
-For Quorum, the RESTful semantics are identical, with the exception that if you wish to create 
-a private transaction, you populate a HTTP header name *privateFor* with a comma-separated
-list of public keys
+For Quorum, the RESTful semantics are identical, with the exception that if you wish to create a private transaction, you populate a HTTP header name *privateFor* with a comma-separated list of public keys
 
 
-## To run locally
-- Run `mysql` and initialize it.
-```
-mysql> create database db_example; -- Create the new database
-mysql> create user 'springuser'@'localhost' identified by 'ThePassword'; -- Creates the user
-mysql> grant all on db_example.* to 'springuser'@'localhost'; -- Gives all the privileges to the new user on the newly created database
-```
+## How to Run Unit Tests
 
-- Run an Ethereum full node/client and start a private testnet, for example
-```bash
-// init with genesis block
-> geth --identity "MyNodeName" --rpc --rpcport "8081" --rpccorsdomain "*" --datadir priv_test --port "30303" --nodiscover --rpcapi "db,eth,net,web3,personal" --networkid 1999 init path/to/fm/castbox/wallet/config/CustomGenesis.json
-// launch geth
-> geth --identity "MyNodeName" --rpc --rpcport "8081" --rpccorsdomain "*" --datadir priv_test --port "30303" --nodiscover --rpcapi "db,eth,net,web3,personal" --networkid 1999
-```
-Copy key file `fm/castbox/wallet/config/UTC--2018-03-13T18-27-23.961533000Z--f6de496ec5601d74937ddd77af09c8cd4ba41ab5` to datadir `priv_test/`. This is needed to unlock our main wallet account to transact.
+### Launch a MySQL instance
 
-- Launch wallet server
-Update `config/application.yml` and `application.properties` under `resources/` to your local settings (e.g., mysql port number) if they differ from default settings.
-```bash
-./gradlew bootRun
-```
+    rm -rf ~/docker_data/contentbox-mysql
+    mkdir -p ~/docker_data/contentbox-mysql
+    docker run --name contentbox-mysql -v ~/docker_data/contentbox-mysql:/var/lib/mysql -e MYSQL_USER=contentbox -e MYSQL_PASSWORD=ThePassw0rd -e MYSQL_DATABASE=wallet -e MYSQL_ALLOW_EMPTY_PASSWORD=yes -p 3306:3306 -d mysql
 
-## Usage
+The command above will launch a MySQL instance, create a table `wallet`, add a user `contentbox` and set its password automatically. Make sure the username and password are identical with `src/main/resources/application.yml`.
+
+### Create an Ethereum private network
+
+First, install `geth` on your Macbook,
+
+    # https://www.ethereum.org/cli
+    brew tap ethereum/ethereum
+    brew install ethereum
+    brew install solidity
+
+Second, create a genesis block,
+
+    rm -rf ~/private_ethereum
+    mkdir ~/private_ethereum
+    geth --identity "MyNodeName" --rpc --rpcport "8081" --rpccorsdomain "*" --datadir ~/private_ethereum --port "30303" --nodiscover --rpcapi "db,eth,net,web3,personal" --networkid 1999 init /path/to/src/main/resources/CustomGenesis.json
+
+Third, start the private network,
+
+    geth --identity "MyNodeName" --rpc --rpcport "8081" --rpccorsdomain "*" --datadir ~/private_ethereum --port "30303" --nodiscover --rpcapi "db,eth,net,web3,personal" --networkid 1999 console
+
+Last, copy the wallet file `/path/to/src/main/resources/f6de496ec5601d74937ddd77af09c8cd4ba41ab5.json` to `~/private_ethereum/keystore`. This file is needed to unlock the main account, which is used in unit tests.
+
+### Run all unit tests
+
+    ./gradlew test
+
+## API References
 
 All available application endpoints are documented using [Swagger](http://swagger.io/).
 

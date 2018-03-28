@@ -11,8 +11,9 @@ import java.util.function.Function;
 import fm.castbox.wallet.domain.Account;
 import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.generated.HumanStandardToken;
-import fm.castbox.wallet.config.NodeConfiguration;
+import fm.castbox.wallet.properties.NodeProperties;
 import fm.castbox.wallet.dto.TransactionResponse;
+import fm.castbox.wallet.properties.WalletProperties;
 import fm.castbox.wallet.repository.AccountRepository;
 import fm.castbox.wallet.repository.TransactionRepository;
 import lombok.Getter;
@@ -26,7 +27,6 @@ import org.web3j.protocol.admin.Admin;
 import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
 
 import org.web3j.protocol.core.DefaultBlockParameter;
-import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.quorum.Quorum;
@@ -45,7 +45,10 @@ public class ContractService {
 
     private final Quorum quorum;
 
-    private final NodeConfiguration nodeConfiguration;
+    private final NodeProperties nodeProperties;
+
+    private final WalletProperties walletProperties;
+
 
     private final Admin admin;
 
@@ -60,17 +63,18 @@ public class ContractService {
     private TransactionRepository transactionRepository;
 
     @Autowired
-    public ContractService(Quorum quorum, NodeConfiguration nodeConfiguration) throws Exception {
+    public ContractService(Quorum quorum, NodeProperties nodeProperties, WalletProperties walletProperties) throws Exception {
         this.quorum = quorum;
-        this.nodeConfiguration = nodeConfiguration;
+        this.nodeProperties = nodeProperties;
+        this.walletProperties = walletProperties;
 
-        admin = Admin.build(new HttpService(nodeConfiguration.getNodeEndpoint()));
-        PersonalUnlockAccount personalUnlockAccount = admin.personalUnlockAccount(nodeConfiguration.getFromAddress(), nodeConfiguration.getEncryptPassphrase()).send();
+        admin = Admin.build(new HttpService(nodeProperties.getNodeEndpoint()));
+        PersonalUnlockAccount personalUnlockAccount = admin.personalUnlockAccount(nodeProperties.getFromAddress(), walletProperties.getPassphrase()).send();
         if (!personalUnlockAccount.accountUnlocked()) {
             throw new Exception("Unlocking account failed");
         }
 
-        web3j = Web3j.build(new HttpService(nodeConfiguration.getNodeEndpoint()));
+        web3j = Web3j.build(new HttpService(nodeProperties.getNodeEndpoint()));
     }
 
     public void subscribeToContractTransferEvents(String contractAddress) throws Exception {
@@ -128,8 +132,8 @@ public class ContractService {
         return new ArrayList<>(contractSubscriptions.keySet());
     }
 
-    public NodeConfiguration getConfig() {
-        return nodeConfiguration;
+    public NodeProperties getConfig() {
+        return nodeProperties;
     }
 
     public String deploy(
@@ -137,7 +141,7 @@ public class ContractService {
             String tokenSymbol) throws Exception {
         try {
             TransactionManager transactionManager = new ClientTransactionManager(
-                    quorum, nodeConfiguration.getFromAddress(), privateFor);
+                    quorum, nodeProperties.getFromAddress(), privateFor);
             HumanStandardToken humanStandardToken = HumanStandardToken.deploy(
                     quorum, transactionManager, GAS_PRICE, GAS_LIMIT,
                     initialAmount, tokenName, decimalUnits,
@@ -157,7 +161,7 @@ public class ContractService {
             return accounts.get(0).getAddress();
         }
         // create a new account for user
-        String address = admin.personalNewAccount(nodeConfiguration.getEncryptPassphrase()).send().getAccountId();
+        String address = admin.personalNewAccount(walletProperties.getPassphrase()).send().getAccountId();
         // initial balance 0
         accountRepository.save(new Account(userId, address, 0));
         return address;
@@ -318,14 +322,14 @@ public class ContractService {
 
     private HumanStandardToken load(String contractAddress, List<String> privateFor) {
         TransactionManager transactionManager = new ClientTransactionManager(
-                quorum, nodeConfiguration.getFromAddress(), privateFor);
+                quorum, nodeProperties.getFromAddress(), privateFor);
         return HumanStandardToken.load(
                 contractAddress, quorum, transactionManager, GAS_PRICE, GAS_LIMIT);
     }
 
     private HumanStandardToken load(String contractAddress) {
         TransactionManager transactionManager = new ClientTransactionManager(
-                quorum, nodeConfiguration.getFromAddress(), Collections.emptyList());
+                quorum, nodeProperties.getFromAddress(), Collections.emptyList());
         return HumanStandardToken.load(
                 contractAddress, quorum, transactionManager, GAS_PRICE, GAS_LIMIT);
     }

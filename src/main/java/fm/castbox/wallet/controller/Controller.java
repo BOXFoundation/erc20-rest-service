@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 
-import fm.castbox.wallet.config.NodeConfiguration;
+import fm.castbox.wallet.properties.NodeProperties;
 import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.service.ContractService;
@@ -39,7 +39,7 @@ public class Controller {
     @ApiOperation("WalletServerApplication configuration")
     @RequestMapping(value = "/config", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-    NodeConfiguration config() {
+    NodeProperties config() {
         return ContractService.getConfig();
     }
 

@@ -1,18 +1,15 @@
-package fm.castbox.wallet.config;
+package fm.castbox.wallet.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 /**
  * Node configuration bean.
  */
 @Data
-@ConfigurationProperties
-@Component
-public class NodeConfiguration {
+@ConfigurationProperties("contentbox.fullnode")
+public class NodeProperties {
 
     private String nodeEndpoint;
     private String fromAddress;
-    private String encryptPassphrase;
 }

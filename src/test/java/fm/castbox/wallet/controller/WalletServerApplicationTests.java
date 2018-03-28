@@ -3,7 +3,7 @@ package fm.castbox.wallet.controller;
 import java.math.BigInteger;
 import java.util.Arrays;
 
-import fm.castbox.wallet.config.NodeConfiguration;
+import fm.castbox.wallet.properties.NodeProperties;
 import fm.castbox.wallet.dto.TransactionResponse;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,15 +34,15 @@ public class WalletServerApplicationTests {
     private static final String PRIVATE_FOR = "QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc=";
 
     @Autowired
-    private NodeConfiguration nodeConfiguration;
+    private NodeProperties nodeProperties;
 
     @Autowired
     private TestRestTemplate restTemplate;
 
     @Test
     public void testConfig() {
-        ResponseEntity<NodeConfiguration> responseEntity =
-                this.restTemplate.getForEntity("/config", NodeConfiguration.class);
+        ResponseEntity<NodeProperties> responseEntity =
+                this.restTemplate.getForEntity("/config", NodeProperties.class);
         verifyHttpStatus(responseEntity);
         assertNotNull(responseEntity.getBody());
     }
@@ -67,7 +67,7 @@ public class WalletServerApplicationTests {
         verifyApproveTx(contractAddress, approveRequest);
 
         verifyAllowance(
-                contractAddress, nodeConfiguration.getFromAddress(), OTHER_ACCOUNT,
+                contractAddress, nodeProperties.getFromAddress(), OTHER_ACCOUNT,
                 approveRequest.getValue());
 
         Controller.TransferRequest transferRequest = new Controller.TransferRequest(
