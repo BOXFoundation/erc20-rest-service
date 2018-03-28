@@ -138,11 +138,30 @@ public class ContractService {
         }
     }
 
-    public String newAccount() throws Exception {
+    public String getUserAddress(String userId) throws Exception {
+        List<Account> accounts = accountRepository.findByUserId(userId);
+        if (accounts.size() > 1) {
+            throw new Exception("Multiple accounts with user id " + userId);
+        }
+        if (accounts.size() == 1) {
+            return accounts.get(0).getAddress();
+        }
+        // create a new account for user
         String address = admin.personalNewAccount(nodeConfiguration.getEncryptPassphrase()).send().getAccountId();
         // initial balance 0
-        accountRepository.save(new Account(address, 0));
+        accountRepository.save(new Account(userId, address, 0));
         return address;
+    }
+
+    public long getUserBalance(String userId) throws Exception {
+        List<Account> accounts = accountRepository.findByUserId(userId);
+        if (accounts.size() > 1) {
+            throw new Exception("Multiple accounts with user id " + userId);
+        }
+        if (accounts.isEmpty()) {
+            throw new Exception("Account with user id " + userId + " does not exist");
+        }
+        return accounts.get(0).getBalance();
     }
 
     public String name(String contractAddress) throws Exception {
@@ -176,16 +195,29 @@ public class ContractService {
     }
 
     public TransactionResponse<TransferEventResponse> transferFrom(
-            List<String> privateFor, String contractAddress, String from, String to, BigInteger value) throws Exception {
-        HumanStandardToken humanStandardToken = load(contractAddress, privateFor);
-        try {
-            TransactionReceipt transactionReceipt = humanStandardToken
-                    .transferFrom(from, to, value).send();
-            return processTransferEventsResponse(humanStandardToken, transactionReceipt);
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
-        }
-    }
+            List<String> privateFor, String contractAddress, String fromUserId, String toAddress, BigInteger value) throws Exception {
+             List<Account> accounts = accountRepository.findByUserId(fromUserId);
+            if (accounts.size() > 1) {
+                throw new Exception("Multiple accounts with user id " + fromUserId);
+            }
+            if (accounts.isEmpty()) {
+                throw new Exception("Account with user id " + fromUserId + " does not exist");
+            }
+
+            Account fromAccount = accounts.get(0);
+            long transferValue = value.longValueExact();
+
+            if (fromAccount.getBalance() < transferValue) {
+                throw new Exception("Insufficient fund");
+            }
+
+            // transfer from main account, not fromAccount
+            TransactionResponse<TransferEventResponse> txResponse =
+                    transfer(privateFor, contractAddress, toAddress, value);
+            fromAccount.setBalance(fromAccount.getBalance() - transferValue);
+            accountRepository.save(fromAccount);
+            return txResponse;
+   }
 
     public long decimals(String contractAddress) throws Exception {
         HumanStandardToken humanStandardToken = load(contractAddress);

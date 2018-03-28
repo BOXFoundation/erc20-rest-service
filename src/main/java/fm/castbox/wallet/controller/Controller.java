@@ -6,8 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 
-import fm.castbox.wallet.domain.Account;
-import fm.castbox.wallet.repository.AccountRepository;
 import fm.castbox.wallet.config.NodeConfiguration;
 import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.service.ContractService;
@@ -33,9 +31,6 @@ public class Controller {
     private final ContractService ContractService;
 
     @Autowired
-    private AccountRepository accountRepository;
-
-    @Autowired
     public Controller(ContractService ContractService) {
         this.ContractService = ContractService;
     }
@@ -48,12 +43,12 @@ public class Controller {
     }
 
     @ApiOperation(
-            value = "Generate a new account",
-            notes = "Returns hex encoded address of the new account"
+            value = "Get user's address",
+            notes = "Returns hex encoded address of the user"
     )
-    @RequestMapping(value = "/newAccount", method = RequestMethod.POST)
-    String newAccount() throws Exception {
-        return ContractService.newAccount();
+    @RequestMapping(value = "/{userId}/address", method = RequestMethod.GET)
+    String getUserAddress(@PathVariable String userId) throws Exception {
+        return ContractService.getUserAddress(userId);
     }
 
     @ApiOperation(
@@ -122,23 +117,12 @@ public class Controller {
             HttpServletRequest request,
             @PathVariable String contractAddress,
             @RequestBody TransferFromRequest transferFromRequest) throws Exception {
-        Account fromAccount = findByAddress(transferFromRequest.getFrom());
-        long transferValue = transferFromRequest.getValue().longValueExact();
-
-        if (fromAccount.getBalance() < transferValue) {
-            throw new Exception("Insufficient fund");
-        }
-
-        // transfer from main account, not fromAccount
-        TransactionResponse<fm.castbox.wallet.service.ContractService.TransferEventResponse> txResponse =
-            ContractService.transfer(
+        return ContractService.transferFrom(
                 extractPrivateFor(request),
                 contractAddress,
-                transferFromRequest.getTo(),
+                transferFromRequest.getFromUserId(),
+                transferFromRequest.getToAddress(),
                 transferFromRequest.getValue());
-        fromAccount.setBalance(fromAccount.getBalance() - transferValue);
-        accountRepository.save(fromAccount);
-        return txResponse;
     }
 
     @ApiOperation("Get decimal precision of tokens")
@@ -153,14 +137,13 @@ public class Controller {
         return ContractService.version(contractAddress);
     }
 
-    @ApiOperation("Get token balance for address")
+    @ApiOperation("Get token balance of a user")
     @RequestMapping(
-            value = "/{contractAddress}/balanceOf/{ownerAddress}", method = RequestMethod.GET)
+            value = "/{contractAddress}/balanceOf/{userId}", method = RequestMethod.GET)
     long balanceOf(
             @PathVariable String contractAddress,
-            @PathVariable String ownerAddress) throws Exception {
-
-        return findByAddress(ownerAddress).getBalance();
+            @PathVariable String userId) throws Exception {
+        return ContractService.getUserBalance(userId);
     }
 
     @ApiOperation("Get token symbol")
@@ -260,18 +243,6 @@ public class Controller {
         }
     }
 
-    private Account findByAddress(String address) throws Exception {
-        List<Account> accounts = accountRepository.findByAddress(address);
-
-        if (accounts.isEmpty()) {
-            throw new Exception("Account with address " + address + " does not exist");
-        }
-        if (accounts.size() > 1) {
-            throw new Exception("Multiple accounts with address " + address);
-        }
-        return accounts.get(0);
-    }
-
     @Data
     static class ContractSpecification {
         private final BigInteger initialAmount;
@@ -288,8 +259,8 @@ public class Controller {
 
     @Data
     static class TransferFromRequest {
-        private final String from;
-        private final String to;
+        private final String fromUserId;
+        private final String toAddress;
         private final BigInteger value;
     }
 
