@@ -93,7 +93,7 @@ public class WalletServerApplicationTests {
         // Therefore our balance remains the same
         verifyBalanceOf(
                 contractAddress,
-                transferFromRequest.getFrom(),
+                transferFromRequest.getFromUserId(),
                 contractSpecification.getInitialAmount().subtract(transferRequest.getValue()));
     }
 
