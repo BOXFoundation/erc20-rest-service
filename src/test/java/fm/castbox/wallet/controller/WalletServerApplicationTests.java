@@ -17,7 +17,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import static junit.framework.TestCase.assertNull;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -62,8 +61,6 @@ public class WalletServerApplicationTests {
         verifyVersion(contractAddress, "H0.1");
 
         verifyTotalSupply(contractAddress, contractSpecification.getInitialAmount());
-        verifyBalanceOf(contractAddress,
-                nodeConfiguration.getFromAddress(), contractSpecification.getInitialAmount());
 
         Controller.ApproveRequest approveRequest = new Controller.ApproveRequest(
                 OTHER_ACCOUNT, BigInteger.valueOf(10000));
@@ -76,25 +73,6 @@ public class WalletServerApplicationTests {
         Controller.TransferRequest transferRequest = new Controller.TransferRequest(
                 OTHER_ACCOUNT, BigInteger.valueOf(10000));
         verifyTransferTx(contractAddress, transferRequest);
-        verifyBalanceOf(
-                contractAddress,
-                transferRequest.getTo(),
-                transferRequest.getValue());
-        verifyBalanceOf(
-                contractAddress,
-                nodeConfiguration.getFromAddress(),
-                contractSpecification.getInitialAmount().subtract(transferRequest.getValue()));
-
-        // Needs to be performed by another account, hence this will fail
-        Controller.TransferFromRequest transferFromRequest =
-                new Controller.TransferFromRequest(
-                        nodeConfiguration.getFromAddress(), OTHER_ACCOUNT, BigInteger.valueOf(1000));
-        verifyTransferFromTxFailure(contractAddress, transferFromRequest);
-        // Therefore our balance remains the same
-        verifyBalanceOf(
-                contractAddress,
-                transferFromRequest.getFromUserId(),
-                contractSpecification.getInitialAmount().subtract(transferRequest.getValue()));
     }
 
     private String deploy(
@@ -142,15 +120,6 @@ public class WalletServerApplicationTests {
         assertThat(responseEntity.getBody(), is(version));
     }
 
-    private void verifyBalanceOf(String contractAddress, String ownerAddress, BigInteger balance) {
-        ResponseEntity<BigInteger> responseEntity =
-                this.restTemplate.getForEntity(
-                        "/" + contractAddress + "" + "/balanceOf/" + ownerAddress,
-                        BigInteger.class);
-        verifyHttpStatus(responseEntity);
-        assertThat(responseEntity.getBody(), is(balance));
-    }
-
     private void verifySymbol(String contractAddress, String symbol) {
         ResponseEntity<String> responseEntity =
                 this.restTemplate.getForEntity(
@@ -175,16 +144,6 @@ public class WalletServerApplicationTests {
                         spenderAddress);
         verifyHttpStatus(responseEntity);
         assertThat(responseEntity.getBody(), is(expected));
-    }
-
-    private void verifyTransferFromTxFailure(
-            String contractAddress, Controller.TransferFromRequest transferFromRequest) {
-        ResponseEntity<TransactionResponse> responseEntity =
-                this.restTemplate.postForEntity(
-                        "/" + contractAddress + "/transferFrom",
-                        buildEntity(transferFromRequest),
-                        TransactionResponse.class);
-        verifyPostResponseFailure(responseEntity);
     }
 
     private void verifyApproveTx(
@@ -223,11 +182,6 @@ public class WalletServerApplicationTests {
     private void verifyPostResponse(ResponseEntity<TransactionResponse> responseEntity) {
         verifyPostResponseBody(responseEntity);
         assertNotNull(responseEntity.getBody().getEvent());
-    }
-
-    private void verifyPostResponseFailure(ResponseEntity<TransactionResponse> responseEntity) {
-        verifyHttpStatus(responseEntity);
-        assertNull(responseEntity.getBody().getEvent());
     }
 
     private void verifyPostResponseBody(ResponseEntity<TransactionResponse> responseEntity) {
