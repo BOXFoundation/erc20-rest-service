@@ -1,7 +1,9 @@
 package fm.castbox.wallet.service;
 
+import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.exception.UserNotExistException;
 import java.math.BigInteger;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -10,13 +12,12 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
-import fm.castbox.wallet.domain.Account;
 import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.generated.HumanStandardToken;
 import fm.castbox.wallet.properties.NodeProperties;
 import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.properties.WalletProperties;
-import fm.castbox.wallet.repository.AccountRepository;
+import fm.castbox.wallet.repository.EthAccountRepository;
 import fm.castbox.wallet.repository.TransactionRepository;
 import lombok.Getter;
 import lombok.Setter;
@@ -56,20 +57,20 @@ public class ContractService {
 
   private final Web3j web3j;
 
-  private HashMap<String /* contract ethAddress */, Subscription /* contract event subscription */> contractSubscriptions = new HashMap<>();
+  private HashMap<String /* contract address */, Subscription /* contract event subscription */> contractSubscriptions = new HashMap<>();
 
-  private AccountRepository accountRepository;
+  private EthAccountRepository ethAccountRepository;
 
   private TransactionRepository transactionRepository;
 
   @Autowired
   public ContractService(Quorum quorum, NodeProperties nodeProperties,
-      WalletProperties walletProperties, AccountRepository accountRepository,
+      WalletProperties walletProperties, EthAccountRepository ethAccountRepository,
       TransactionRepository transactionRepository) throws Exception {
     this.quorum = quorum;
     this.nodeProperties = nodeProperties;
     this.walletProperties = walletProperties;
-    this.accountRepository = accountRepository;
+    this.ethAccountRepository = ethAccountRepository;
     this.transactionRepository = transactionRepository;
 
     admin = Admin.build(new HttpService(nodeProperties.getNodeEndpoint()));
@@ -101,15 +102,15 @@ public class ContractService {
                     + " from    : " + txEvent._from + "\n"
                     + " to      : " + txEvent._to + "\n"
                     + " value   : " + txEvent._value);
-            Optional<Account> accountOptional = accountRepository.findByEthAddress(txEvent._to);
+            Optional<EthAccount> accountOptional = ethAccountRepository.findByAddress(txEvent._to);
             if (!accountOptional.isPresent()) {
               return;
             }
-            Account toAccount = accountOptional.get();
+            EthAccount toEthAccount = accountOptional.get();
             long transferValue = txEvent._value.longValueExact();
-            toAccount.setEthBalance(toAccount.getEthBalance() + transferValue);
-            accountRepository.save(toAccount);
-            // Only append tx not saved before. Otherwise previous send tx will be overwritten with main account as from ethAddress
+            toEthAccount.setBalance(toEthAccount.getBalance() + transferValue);
+            ethAccountRepository.save(toEthAccount);
+            // Only append tx not saved before. Otherwise previous send tx will be overwritten with main account as from address
             String txId = txEvent._transactionHash;
             if (!transactionRepository.existsById(txId)) {
               transactionRepository.save(new Transaction(txId, txEvent._from, txEvent._to,
@@ -156,24 +157,25 @@ public class ContractService {
   }
 
   public String getUserAddress(String userId) throws Exception {
-    Optional<Account> accountOptional = accountRepository.findByUserId(userId);
+    Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (accountOptional.isPresent()) {
-      return accountOptional.get().getEthAddress();
+      return accountOptional.get().getAddress();
     }
     // create a new account for user
     String address = admin.personalNewAccount(walletProperties.getPassphrase()).send()
         .getAccountId();
-    // initial ethBalance 0
-    accountRepository.save(new Account(userId, address, 0));
+    // initial balance 0
+    Timestamp now = new Timestamp(System.currentTimeMillis());
+    ethAccountRepository.save(new EthAccount(userId, address, "", 0, now, now));
     return address;
   }
 
   public long getUserBalance(String userId) {
-    Optional<Account> accountOptional = accountRepository.findByUserId(userId);
+    Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (!accountOptional.isPresent()) {
-      throw new UserNotExistException(userId);
+      throw new UserNotExistException(userId, "ETH");
     }
-    return accountOptional.get().getEthBalance();
+    return accountOptional.get().getBalance();
   }
 
   public String name(String contractAddress) throws Exception {
@@ -210,25 +212,25 @@ public class ContractService {
   public TransactionResponse<TransferEventResponse> transferFrom(
       List<String> privateFor, String contractAddress, String fromUserId, String toAddress,
       BigInteger value) throws Exception {
-    Optional<Account> accountOptional = accountRepository.findByUserId(fromUserId);
+    Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(fromUserId);
     if (!accountOptional.isPresent()) {
-      throw new UserNotExistException(fromUserId);
+      throw new UserNotExistException(fromUserId, "ETH");
     }
 
-    Account fromAccount = accountOptional.get();
+    EthAccount fromEthAccount = accountOptional.get();
     long transferValue = value.longValueExact();
 
-    if (fromAccount.getEthBalance() < transferValue) {
+    if (fromEthAccount.getBalance() < transferValue) {
       throw new Exception("Insufficient fund");
     }
 
-    // transfer from main account, not fromAccount
+    // transfer from main account, not fromEthAccount
     TransactionResponse<TransferEventResponse> txResponse =
         transfer(privateFor, contractAddress, toAddress, value);
-    fromAccount.setEthBalance(fromAccount.getEthBalance() - transferValue);
-    accountRepository.save(fromAccount);
+    fromEthAccount.setBalance(fromEthAccount.getBalance() - transferValue);
+    ethAccountRepository.save(fromEthAccount);
     transactionRepository.save(
-        new Transaction(txResponse.getTransactionHash(), fromAccount.getEthAddress(), toAddress,
+        new Transaction(txResponse.getTransactionHash(), fromEthAccount.getAddress(), toAddress,
             transferValue));
     return txResponse;
   }
@@ -311,11 +313,11 @@ public class ContractService {
   }
 
   public List<Transaction> listTransactions(String contractAddress, String userId) {
-    Optional<Account> accountOptional = accountRepository.findByUserId(userId);
+    Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (!accountOptional.isPresent()) {
-      throw new UserNotExistException(userId);
+      throw new UserNotExistException(userId, "ETH");
     }
-    return transactionRepository.findByAddress(accountOptional.get().getEthAddress());
+    return transactionRepository.findByAddress(accountOptional.get().getAddress());
   }
 
   private HumanStandardToken load(String contractAddress, List<String> privateFor) {

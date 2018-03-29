@@ -3,8 +3,6 @@ spring:
     database: H2
     hibernate:
       ddl-auto: create-drop
-  datasource:
-    data: classpath:/sql-scripts/data.sql
 
 contentbox:
   fullnode:
