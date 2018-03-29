@@ -1,0 +1,24 @@
+spring:
+  jpa:
+    database: MYSQL
+    hibernate:
+      ddl-auto: validate
+    properties:
+      dialect: org.hibernate.dialect.MySQL5Dialect
+  datasource:
+    url: TODO
+    username: TODO
+    password: TODO
+
+contentbox:
+  fullnode:
+    # Endpoint of an Ethereum or Quorum node we wish to use.
+    # To use IPC simply provide a file path to the socket, such as /path/to/geth.ipc
+    nodeEndpoint: TODO
+    # The Ethereum or Quorum ethAddress we wish to use when transacting.
+    # Note - this ethAddress must be already unlocked in the client
+    fromAddress: TODO
+  wallet:
+    # passphrase to encrypt wallet files
+    passphrase: TODO
+    dir: TODO

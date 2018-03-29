@@ -1,0 +1,24 @@
+spring:
+  jpa:
+    database: MYSQL
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      dialect: org.hibernate.dialect.MySQL5Dialect
+  datasource:
+    url: jdbc:mysql://localhost:3306/wallet?autoReconnect=true&useSSL=false
+    username: contentbox
+    password: ThePassw0rd
+
+contentbox:
+  fullnode:
+    # Endpoint of an Ethereum or Quorum node we wish to use.
+    # To use IPC simply provide a file path to the socket, such as /path/to/geth.ipc
+    nodeEndpoint: http://localhost:8081
+    # The Ethereum or Quorum ethAddress we wish to use when transacting.
+    # Note - this ethAddress must be already unlocked in the client
+    fromAddress: "0xf6de496ec5601d74937ddd77af09c8cd4ba41ab5"
+  wallet:
+    # passphrase to encrypt wallet files
+    passphrase: "password"
+    dir: "/User/frankdai/wallet_files"

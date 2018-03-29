@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: dev
+    active: test
   jpa:
     hibernate:
       show-sql: true

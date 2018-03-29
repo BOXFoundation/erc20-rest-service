@@ -1,19 +1,24 @@
 package fm.castbox.wallet.domain;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-
+@Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
 public class Account {
-    private @Id String userId;
-    private String address;
-    private long balance;
+
+  @Id
+  @Column(columnDefinition = "CHAR(32)")
+  private String userId;  // userId from castbox
+
+  @Column(unique = true, nullable = false, columnDefinition = "CHAR(42)")
+  private String ethAddress;
+
+  private long ethBalance;
 }
