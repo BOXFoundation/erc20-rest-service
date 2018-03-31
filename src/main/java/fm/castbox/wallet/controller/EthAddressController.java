@@ -6,8 +6,8 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import java.util.Optional;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 
@@ -24,7 +24,7 @@ public class EthAddressController {
   @ApiOperation(
       value = "Create an Ethereum address for a new user",
       notes = "Returns a new ETH address")
-  @RequestMapping(value = "/ethereum/address/create/{userId:[a-zA-Z0-9]{32}}")
+  @GetMapping(value = "/ethereum/address/create/{userId:[a-zA-Z0-9]{32}}")
   public AddressDto createAddress(@PathVariable("userId") String userId) {
     Optional<String> address = ethAccountService.createAddress(userId);
     if (address.isPresent()) {
@@ -37,7 +37,7 @@ public class EthAddressController {
   @ApiOperation(
       value = "Change to another Ethereum address for an existing user",
       notes = "Returns a new ETH address")
-  @RequestMapping(value = "/ethereum/address/change/{userId:[a-zA-Z0-9]{32}}")
+  @GetMapping(value = "/ethereum/address/change/{userId:[a-zA-Z0-9]{32}}")
   public AddressDto changeAddress(@PathVariable("userId") String userId) {
     Optional<String> address = ethAccountService.changeAddress(userId);
     if (address.isPresent()) {
