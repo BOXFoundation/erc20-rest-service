@@ -19,7 +19,7 @@ import org.web3j.crypto.Keys;
 
 @Service
 public class EthAccountServiceImpl implements EthAccountService {
-
+  private static final String ADDRESS_PREFIX = "0x";
   private final EthAccountRepository ethAccountRepository;
   private final AddressHistoryRepository addressHistoryRepository;
 
@@ -38,7 +38,7 @@ public class EthAccountServiceImpl implements EthAccountService {
     }
     try {
       ECKeyPair ecKeyPair = Keys.createEcKeyPair();
-      String address = Keys.getAddress(ecKeyPair);
+      String address = ADDRESS_PREFIX + Keys.getAddress(ecKeyPair);
       String privateKey = ecKeyPair.getPrivateKey().toString(16);
       Timestamp now = new Timestamp(System.currentTimeMillis());
       EthAccount ethAccount = new EthAccount(userId, address, privateKey, 0, now, now);
@@ -53,7 +53,7 @@ public class EthAccountServiceImpl implements EthAccountService {
   public Optional<String> changeAddress(String userId) {
     try {
       ECKeyPair ecKeyPair = Keys.createEcKeyPair();
-      String address = Keys.getAddress(ecKeyPair);
+      String address = ADDRESS_PREFIX + Keys.getAddress(ecKeyPair);
       String privateKey = ecKeyPair.getPrivateKey().toString(16);
       Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
       if (!accountOptional.isPresent()) {

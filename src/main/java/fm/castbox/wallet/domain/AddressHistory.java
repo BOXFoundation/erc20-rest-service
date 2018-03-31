@@ -31,9 +31,10 @@ public class AddressHistory {
   @Column(nullable = false, length = 16)
   private final String coin;
 
+  // prefixed with "0x"
   @NotBlank
-  @Length(min = 8, max = 64)
-  @Column(unique = true, nullable = false, length = 64)
+  @Length(min = 42, max = 42)
+  @Column(unique = true, nullable = false, columnDefinition = "CHAR(42)")
   private final String address;
 
   @NotBlank

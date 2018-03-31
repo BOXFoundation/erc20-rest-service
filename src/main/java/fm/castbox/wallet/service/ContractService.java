@@ -45,6 +45,8 @@ import static org.web3j.tx.ManagedTransaction.GAS_PRICE;
  */
 @Service
 public class ContractService {
+  // TODO: full node does not return private key, may fill in later
+  private static final String DUMMY_PRIVATE_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
   private final Quorum quorum;
 
@@ -166,7 +168,7 @@ public class ContractService {
         .getAccountId();
     // initial balance 0
     Timestamp now = new Timestamp(System.currentTimeMillis());
-    ethAccountRepository.save(new EthAccount(userId, address, "", 0, now, now));
+    ethAccountRepository.save(new EthAccount(userId, address, DUMMY_PRIVATE_KEY, 0, now, now));
     return address;
   }
 
