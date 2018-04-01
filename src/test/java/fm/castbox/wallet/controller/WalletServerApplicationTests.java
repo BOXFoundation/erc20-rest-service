@@ -9,7 +9,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -38,6 +41,15 @@ public class WalletServerApplicationTests {
 
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @TestConfiguration
+    static class Config {
+        private static final int TIMEOUT = 120000;
+        @Bean
+        public RestTemplateBuilder restTemplateBuilder() {
+            return new RestTemplateBuilder().setConnectTimeout(TIMEOUT).setReadTimeout(TIMEOUT);
+        }
+    }
 
     @Test
     public void testConfig() {

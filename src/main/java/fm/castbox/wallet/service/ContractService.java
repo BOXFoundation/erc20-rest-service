@@ -48,6 +48,10 @@ public class ContractService {
   // TODO: full node does not return private key, may fill in later
   private static final String DUMMY_PRIVATE_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
+  // override default timeout of 20 attempts every 1 second
+  private static final int SLEEP_DURATION = 1000;
+  private static final int ATTEMPTS = 60;
+
   private final Quorum quorum;
 
   private final NodeProperties nodeProperties;
@@ -147,7 +151,7 @@ public class ContractService {
       String tokenSymbol) throws Exception {
     try {
       TransactionManager transactionManager = new ClientTransactionManager(
-          quorum, nodeProperties.getFromAddress(), privateFor);
+          quorum, nodeProperties.getFromAddress(), privateFor, ATTEMPTS, SLEEP_DURATION);
       HumanStandardToken humanStandardToken = HumanStandardToken.deploy(
           quorum, transactionManager, GAS_PRICE, GAS_LIMIT,
           initialAmount, tokenName, decimalUnits,
@@ -324,14 +328,14 @@ public class ContractService {
 
   private HumanStandardToken load(String contractAddress, List<String> privateFor) {
     TransactionManager transactionManager = new ClientTransactionManager(
-        quorum, nodeProperties.getFromAddress(), privateFor);
+        quorum, nodeProperties.getFromAddress(), privateFor, ATTEMPTS, SLEEP_DURATION);
     return HumanStandardToken.load(
         contractAddress, quorum, transactionManager, GAS_PRICE, GAS_LIMIT);
   }
 
   private HumanStandardToken load(String contractAddress) {
     TransactionManager transactionManager = new ClientTransactionManager(
-        quorum, nodeProperties.getFromAddress(), Collections.emptyList());
+        quorum, nodeProperties.getFromAddress(), Collections.emptyList(), ATTEMPTS, SLEEP_DURATION);
     return HumanStandardToken.load(
         contractAddress, quorum, transactionManager, GAS_PRICE, GAS_LIMIT);
   }
