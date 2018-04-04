@@ -1,0 +1,32 @@
+version: '3.6'
+services:
+  bootnode:
+    image: ethereum/client-go
+    container_name: bootnode
+    volumes:
+      - .:/ethconf
+      - ethereum_bootnode:/root/.ethereum
+    networks:
+      - testnet
+    ports:
+      - "8545:8545"
+    entrypoint: sh /ethconf/start_node.sh bootnode bootnode
+  miner:
+    image: ethereum/client-go
+    container_name: miner
+    volumes:
+      - .:/ethconf
+      - ethereum_miner:/root/.ethereum
+    networks:
+      - testnet
+    entrypoint: sh /ethconf/start_node.sh miner miner
+    depends_on:
+      - bootnode
+volumes:
+  ethereum_bootnode:
+    driver: local
+  ethereum_miner:
+    driver: local
+
+networks:
+  testnet:
