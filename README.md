@@ -19,24 +19,8 @@ The command above will launch a MySQL instance, create a table `wallet`, add a u
 
 ### Create an Ethereum private network
 
-First, install `geth` on your Macbook,
-
-    # https://www.ethereum.org/cli
-    brew tap ethereum/ethereum
-    brew install ethereum
-    brew install solidity
-
-Second, create a genesis block,
-
-    rm -rf ~/private_ethereum
-    mkdir ~/private_ethereum
-    geth --identity "MyNodeName" --rpc --rpcport "8081" --rpccorsdomain "*" --datadir ~/private_ethereum --port "30303" --nodiscover --rpcapi "db,eth,net,web3,personal" --networkid 1999 init /path/to/src/main/resources/CustomGenesis.json
-
-Third, start the private network,
-
-    geth --identity "MyNodeName" --rpc --rpcport "8081" --rpccorsdomain "*" --datadir ~/private_ethereum --port "30303" --nodiscover --rpcapi "db,eth,net,web3,personal" --networkid 1999 console
-
-Last, copy the wallet file `/path/to/src/main/resources/f6de496ec5601d74937ddd77af09c8cd4ba41ab5.json` to `~/private_ethereum/keystore`. This file is needed to unlock the main account, which is used in unit tests.
+    cd tools/ethereum_private_network/
+    docker-compose up
 
 ### Run all unit tests
 
