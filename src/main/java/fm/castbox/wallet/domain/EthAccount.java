@@ -24,16 +24,14 @@ public class EthAccount {
   @Length(min = 32, max = 32)
   private String userId;  // userId from castbox
 
-  // prefixed with "0x"
   @NotBlank
   @Length(min = 42, max = 42)
-  @Column(nullable = false, columnDefinition = "CHAR(42)")
+  @Column(unique = true, nullable = false, columnDefinition = "CHAR(42)")
   private String address;
 
   @NotBlank
   @Length(min = 64, max = 64)
-  // TODO: add "unique = true"
-  @Column(nullable = false, columnDefinition = "CHAR(64)")
+  @Column(unique = true, nullable = false, columnDefinition = "CHAR(64)")
   private String privateKey;
 
   private long balance;
