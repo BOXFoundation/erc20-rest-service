@@ -25,7 +25,7 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
     // logger.error("400 Status Code", ex);
     BindingResult result = ex.getBindingResult();
     GeneralResponse bodyOfResponse = new GeneralResponse(result.getAllErrors(),
-        "Invalid" + result.getObjectName());
+        "Invalid " + result.getObjectName());
     return handleExceptionInternal(ex, bodyOfResponse, new HttpHeaders(), HttpStatus.BAD_REQUEST,
         request);
   }
@@ -37,16 +37,25 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
     // logger.error("400 Status Code", ex);
     BindingResult result = ex.getBindingResult();
     GeneralResponse bodyOfResponse = new GeneralResponse(result.getAllErrors(),
-        "Invalid" + result.getObjectName());
+        "Invalid " + result.getObjectName());
     return handleExceptionInternal(ex, bodyOfResponse, new HttpHeaders(), HttpStatus.BAD_REQUEST,
         request);
   }
 
-  @ExceptionHandler({UserNotExistException.class})
-  public ResponseEntity<Object> handleCaptchaException(UserNotExistException ex,
+  @ExceptionHandler({UserIdAlreadyExistException.class})
+  public ResponseEntity<Object> handleUserIdAlreadyExistException(UserIdAlreadyExistException ex,
       WebRequest request) {
-    return handleExceptionInternal(ex, ex.getMessage(), new HttpHeaders(), HttpStatus.BAD_REQUEST,
-        request);
+    return handleExceptionInternal(ex, new GeneralResponse(ex.getMessage(),
+            "UserIdAlreadyExistException"), new HttpHeaders(),
+        HttpStatus.BAD_REQUEST, request);
+  }
+
+  @ExceptionHandler({UserNotExistException.class})
+  public ResponseEntity<Object> handleUserNotExistException(UserNotExistException ex,
+      WebRequest request) {
+    return handleExceptionInternal(ex, new GeneralResponse(ex.getMessage(),
+            "UserNotExistException"), new HttpHeaders(),
+        HttpStatus.BAD_REQUEST, request);
   }
 
 }

@@ -1,6 +1,8 @@
 spring:
   profiles:
     active: dev
+  jackson:
+    property-naming-strategy: SNAKE_CASE
   jpa:
     hibernate:
       show-sql: true
