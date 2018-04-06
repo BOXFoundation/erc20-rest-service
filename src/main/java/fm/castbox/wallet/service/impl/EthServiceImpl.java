@@ -14,6 +14,7 @@ import java.security.NoSuchProviderException;
 import java.sql.Timestamp;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.encrypt.TextEncryptor;
 import org.springframework.stereotype.Service;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
@@ -24,12 +25,16 @@ public class EthServiceImpl implements EthService {
   private static final String ADDRESS_PREFIX = "0x";
   private final EthAccountRepository ethAccountRepository;
   private final AddressHistoryRepository addressHistoryRepository;
+  private final TextEncryptor textEncryptor;
 
   @Autowired
-  public EthServiceImpl(EthAccountRepository ethAccountRepository,
-      AddressHistoryRepository addressHistoryRepository) {
+  public EthServiceImpl(
+      EthAccountRepository ethAccountRepository,
+      AddressHistoryRepository addressHistoryRepository,
+      TextEncryptor textEncryptor) {
     this.ethAccountRepository = ethAccountRepository;
     this.addressHistoryRepository = addressHistoryRepository;
+    this.textEncryptor = textEncryptor;
   }
 
   @Override
@@ -43,7 +48,7 @@ public class EthServiceImpl implements EthService {
       String privateKey = ecKeyPair.getPrivateKey().toString(16);
       Timestamp now = new Timestamp(System.currentTimeMillis());
       EthAccount ethAccount = new EthAccount(userId, address, privateKey, 0, now, now);
-      ethAccountRepository.save(ethAccount);
+      this.save(ethAccount);
       return Optional.of(address);
     } catch (InvalidAlgorithmParameterException | NoSuchAlgorithmException | NoSuchProviderException e) {
       return Optional.empty();
@@ -67,7 +72,7 @@ public class EthServiceImpl implements EthService {
       ethAccount.setAddress(address);
       ethAccount.setPrivateKey(privateKey);
       ethAccount.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
-      ethAccountRepository.save(ethAccount);
+      this.save(ethAccount);
 
       // Move old address to history
       addressHistoryRepository.save(new AddressHistory(userId, "ETH", address, privateKey,
@@ -88,6 +93,11 @@ public class EthServiceImpl implements EthService {
     String address = accountOptional.get().getAddress();
     double balance = accountOptional.get().getBalance();
     return new BalanceDto("ETH", address, balance);
+  }
+
+  private void save(EthAccount ethAccount) {
+    ethAccount.setPrivateKey(textEncryptor.encrypt(ethAccount.getPrivateKey()));
+    ethAccountRepository.save(ethAccount);
   }
 
 }

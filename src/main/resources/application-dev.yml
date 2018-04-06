@@ -22,3 +22,7 @@ contentbox:
     # passphrase to encrypt wallet files
     passphrase: "password"
     dir: "/User/frankdai/wallet_files"
+  # We use AES 256 to encrypt private keys
+  aes256:
+    password: mypassw0rd
+    salt: mysalt
