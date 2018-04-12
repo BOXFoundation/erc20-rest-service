@@ -39,3 +39,8 @@ gradle-app.setting
 *.log
 logs
 /out
+
+# ignore docker related files
+tools/ethereum_private_network/ethereum_bootnode/*
+tools/ethereum_private_network/ethereum_miner/*
+tools/ethereum_private_network/bootnode.txt

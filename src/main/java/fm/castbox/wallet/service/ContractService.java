@@ -83,7 +83,7 @@ public class ContractService {
     PersonalUnlockAccount personalUnlockAccount = admin
         .personalUnlockAccount(nodeProperties.getFromAddress(), walletProperties.getPassphrase())
         .send();
-    if (!personalUnlockAccount.accountUnlocked()) {
+    if ( null == personalUnlockAccount.accountUnlocked() ) {
       throw new Exception("Unlocking account failed");
     }
 

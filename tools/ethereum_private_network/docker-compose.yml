@@ -5,7 +5,7 @@ services:
     container_name: bootnode
     volumes:
       - .:/ethconf
-      - ethereum_bootnode:/root/.ethereum
+      - ./ethereum_bootnode:/root/.ethereum
     networks:
       - testnet
     ports:
@@ -16,7 +16,7 @@ services:
     container_name: miner
     volumes:
       - .:/ethconf
-      - ethereum_miner:/root/.ethereum
+      - ./ethereum_miner:/root/.ethereum
     networks:
       - testnet
     entrypoint: sh /ethconf/start_node.sh miner miner

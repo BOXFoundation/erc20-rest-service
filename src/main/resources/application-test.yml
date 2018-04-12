@@ -18,5 +18,5 @@ contentbox:
     dir: "/User/frankdai/wallet_files"
   # We use AES 256 to encrypt private keys
   aes256:
-    password: mypassw0rd
-    salt: mysalt
+    password: 25fd9747c488b18a1d60723a4e311c0f200059f65c4d25a3079239c29a635d5a2406ece916aab23a # mypassw0rd
+    salt: 1419efe5525bd69abd8bdca8af8fb0fa74a08002adfc21fb0d4bb78b18ae8885e8950bf3c13f4b87 # mysalt
