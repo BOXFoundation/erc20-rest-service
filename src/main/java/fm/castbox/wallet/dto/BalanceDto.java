@@ -2,6 +2,7 @@ package fm.castbox.wallet.dto;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
+import lombok.Data;
 import lombok.Value;
 import org.hibernate.validator.constraints.Length;
 import org.hibernate.validator.constraints.Range;
@@ -13,11 +14,11 @@ public class BalanceDto {
   @Length(min = 2, max = 8)
   private String symbol;
 
-  @NotBlank
-  @Length(min = 42, max = 42)
-  private final String address;
+  // balance in terms of tokens
+  @Min(value = 0L, message = "Balance cannot be negative")
+  private double tokenAmount;
 
-  @Range(min = 0)
-  @Min(value = 0L, message = "The balance must be positive")
-  private double balance;
+  // balance in terms of dollars
+  @Min(value = 0L, message = "Balance cannot be negative")
+  private double usdAmount;
 }

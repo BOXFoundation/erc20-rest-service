@@ -90,9 +90,9 @@ public class EthServiceImpl implements EthService {
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(userId, "ETH");
     }
-    String address = accountOptional.get().getAddress();
     double balance = accountOptional.get().getBalance();
-    return new BalanceDto("ETH", address, balance);
+    // TODO: fill in dollar amount
+    return new BalanceDto("ETH", balance, 0);
   }
 
   private void save(EthAccount ethAccount) {

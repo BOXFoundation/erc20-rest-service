@@ -81,10 +81,6 @@ public class WalletServerApplicationTests {
         verifyAllowance(
                 contractAddress, nodeProperties.getFromAddress(), OTHER_ACCOUNT,
                 approveRequest.getValue());
-
-        Controller.TransferRequest transferRequest = new Controller.TransferRequest(
-                OTHER_ACCOUNT, BigInteger.valueOf(10000));
-        verifyTransferTx(contractAddress, transferRequest);
     }
 
     private String deploy(
@@ -164,16 +160,6 @@ public class WalletServerApplicationTests {
                 this.restTemplate.postForEntity(
                         "/" + contractAddress + "/approve",
                         buildEntity(approveRequest),
-                        TransactionResponse.class);
-        verifyPostResponse(responseEntity);
-    }
-
-    private void verifyTransferTx(
-            String contractAddress, Controller.TransferRequest transferRequest) {
-        ResponseEntity<TransactionResponse> responseEntity =
-                this.restTemplate.postForEntity(
-                        "/" + contractAddress + "/transfer",
-                        buildEntity(transferRequest),
                         TransactionResponse.class);
         verifyPostResponse(responseEntity);
     }

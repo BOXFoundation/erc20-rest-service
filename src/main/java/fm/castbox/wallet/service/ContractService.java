@@ -1,10 +1,12 @@
 package fm.castbox.wallet.service;
 
 import fm.castbox.wallet.domain.EthAccount;
+import fm.castbox.wallet.dto.BalanceDto;
 import fm.castbox.wallet.exception.UserNotExistException;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +21,7 @@ import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.properties.WalletProperties;
 import fm.castbox.wallet.repository.EthAccountRepository;
 import fm.castbox.wallet.repository.TransactionRepository;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +67,8 @@ public class ContractService {
   private final Web3j web3j;
 
   private HashMap<String /* contract address */, Subscription /* contract event subscription */> contractSubscriptions = new HashMap<>();
+
+  private HashMap<String /* token symbol */, ContractInstance /* token contract details */> tokenSymbolContracts = new HashMap<>();
 
   private EthAccountRepository ethAccountRepository;
 
@@ -118,9 +123,10 @@ public class ContractService {
             ethAccountRepository.save(toEthAccount);
             // Only append tx not saved before. Otherwise previous send tx will be overwritten with main account as from address
             String txId = txEvent._transactionHash;
-            if (!transactionRepository.existsById(txId)) {
-              transactionRepository.save(new Transaction(txId, txEvent._from, txEvent._to,
-                  txEvent._value.longValueExact()));
+            if (!transactionRepository.existsByTxId(txId)) {
+              Timestamp now = new Timestamp(System.currentTimeMillis());
+              transactionRepository.save(new Transaction(txId, "" /* fromUserId */, txEvent._from,
+                  "" /* toUserId */, txEvent._to, txEvent._value.longValueExact(), now));
             }
           });
     }, Throwable::printStackTrace);
@@ -156,7 +162,12 @@ public class ContractService {
           quorum, transactionManager, GAS_PRICE, GAS_LIMIT,
           initialAmount, tokenName, decimalUnits,
           tokenSymbol).send();
-      return humanStandardToken.getContractAddress();
+      String contractAddress = humanStandardToken.getContractAddress();
+      ContractInstance contractInstance = new ContractInstance(contractAddress, initialAmount, tokenName, decimalUnits, tokenSymbol);
+      // TODO: symbol duplicate detection
+      tokenSymbolContracts.put(tokenSymbol, contractInstance);
+      subscribeToContractTransferEvents(contractAddress);
+      return contractAddress;
     } catch (InterruptedException | ExecutionException e) {
       throw new RuntimeException(e);
     }
@@ -176,12 +187,14 @@ public class ContractService {
     return address;
   }
 
-  public long getUserBalance(String userId) {
+  public List<BalanceDto> getUserBalances(String userId) {
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (!accountOptional.isPresent()) {
-      throw new UserNotExistException(userId, "ETH");
+      throw new UserNotExistException(userId, "BOX");
     }
-    return accountOptional.get().getBalance();
+    double balance = accountOptional.get().getBalance();
+    // TODO: fill in dollar amount
+    return Arrays.asList(new BalanceDto("BOX", balance, 0));
   }
 
   public String name(String contractAddress) throws Exception {
@@ -215,9 +228,30 @@ public class ContractService {
     }
   }
 
-  public TransactionResponse<TransferEventResponse> transferFrom(
-      List<String> privateFor, String contractAddress, String fromUserId, String toAddress,
+  public TransactionResponse<TransferEventResponse> transferFromUser(
+      List<String> privateFor, String tokenSymbol, String fromUserId, String toUserId, String toAddress,
       BigInteger value) throws Exception {
+    if (toUserId.isEmpty() && toAddress.isEmpty()) {
+      throw new RuntimeException("toUserId and toAddress cannot be both missing");
+    }
+    if (!toUserId.isEmpty() && !toAddress.isEmpty()) {
+      throw new RuntimeException("toUserId and toAddress cannot be both present");
+    }
+    // look up toAddress from toUserId
+    if (!toUserId.isEmpty()) {
+      Optional<EthAccount> toAddressOptional = ethAccountRepository.findByUserId(toUserId);
+      if (!toAddressOptional.isPresent()) {
+        throw new UserNotExistException(toUserId, "ETH");
+      }
+      toAddress = toAddressOptional.get().getAddress();
+    }
+
+    ContractInstance contractInstance = tokenSymbolContracts.get(tokenSymbol);
+    if (contractInstance == null) {
+      throw new RuntimeException("Unknown contract for token " + tokenSymbol);
+    }
+    String contractAddress = contractInstance.getAddress();
+
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(fromUserId);
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(fromUserId, "ETH");
@@ -235,9 +269,10 @@ public class ContractService {
         transfer(privateFor, contractAddress, toAddress, value);
     fromEthAccount.setBalance(fromEthAccount.getBalance() - transferValue);
     ethAccountRepository.save(fromEthAccount);
+    Timestamp now = new Timestamp(System.currentTimeMillis());
     transactionRepository.save(
-        new Transaction(txResponse.getTransactionHash(), fromEthAccount.getAddress(), toAddress,
-            transferValue));
+        new Transaction(txResponse.getTransactionHash(), "" /* fromUserId */, fromEthAccount.getAddress(), "" /* toUserId */, toAddress,
+            transferValue, now));
     return txResponse;
   }
 
@@ -318,7 +353,7 @@ public class ContractService {
     }
   }
 
-  public List<Transaction> listTransactions(String contractAddress, String userId) {
+  public List<Transaction> listTransactions(String userId) {
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(userId, "ETH");
@@ -408,5 +443,15 @@ public class ContractService {
       this.spender = approvalEventResponse._spender;
       this.value = approvalEventResponse._value.longValueExact();
     }
+  }
+
+  @Data
+  private class ContractInstance {
+    private final String address;
+    // specification
+    private final BigInteger initialAmount;
+    private final String tokenName;
+    private final BigInteger decimalUnits;
+    private final String tokenSymbol;
   }
 }

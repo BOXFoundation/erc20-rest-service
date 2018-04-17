@@ -1,5 +1,6 @@
 package fm.castbox.wallet.controller;
 
+import fm.castbox.wallet.dto.BalanceDto;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,6 +30,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Api("ERC-20 token standard API")
 @RestController
 public class Controller {
+    private static final String API_VERSION = "0.1";
+
     private final ContractService ContractService;
 
     @Autowired
@@ -47,7 +50,7 @@ public class Controller {
             value = "Get user's address",
             notes = "Returns hex encoded address of the user"
     )
-    @RequestMapping(value = "/{userId}/address", method = RequestMethod.GET)
+    @RequestMapping(value = "/" + API_VERSION + "/eth/users/{userId}/address", method = RequestMethod.GET)
     String getUserAddress(@PathVariable String userId) throws Exception {
         return ContractService.getUserAddress(userId);
     }
@@ -106,24 +109,25 @@ public class Controller {
     }
 
     @ApiOperation(
-            value = "Transfer tokens between addresses (must already be approved)",
+            value = "Transfer tokens from a user to an address",
             notes = "Returns hex encoded transaction hash, and Transfer event if called")
     @ApiImplicitParam(name = "privateFor",
             value = "Comma separated list of public keys of enclave nodes that transaction is "
                     + "private for",
             paramType = "header",
             dataType = "string")
-    @RequestMapping(value = "/{contractAddress}/transferFrom", method = RequestMethod.POST)
-    TransactionResponse<ContractService.TransferEventResponse> transferFrom(
+    @RequestMapping(value = "/" + API_VERSION + "/eth/users/{userId}/transfer", method = RequestMethod.POST)
+    TransactionResponse<ContractService.TransferEventResponse> transferFromUser(
             HttpServletRequest request,
-            @PathVariable String contractAddress,
-            @RequestBody TransferFromRequest transferFromRequest) throws Exception {
-        return ContractService.transferFrom(
+            @PathVariable String userId,
+            @RequestBody TransferRequest transferRequest) throws Exception {
+        return ContractService.transferFromUser(
                 extractPrivateFor(request),
-                contractAddress,
-                transferFromRequest.getFromUserId(),
-                transferFromRequest.getToAddress(),
-                transferFromRequest.getValue());
+                transferRequest.getTokenSymbol(),
+                userId,
+                transferRequest.getToUserId(),
+                transferRequest.getToAddress(),
+                transferRequest.getAmount());
     }
 
     @ApiOperation("Get decimal precision of tokens")
@@ -138,39 +142,19 @@ public class Controller {
         return ContractService.version(contractAddress);
     }
 
-    @ApiOperation("Get token balance of a user")
+    @ApiOperation(
+            value = "Get token balances of a user",
+            notes = "Returns a dictionary like {“BOX”: “500”, “ETH”: “100”}")
     @RequestMapping(
-            value = "/{contractAddress}/balanceOf/{userId}", method = RequestMethod.GET)
-    long balanceOf(
-            @PathVariable String contractAddress,
-            @PathVariable String userId) throws Exception {
-        return ContractService.getUserBalance(userId);
+            value = "/" + API_VERSION + "/eth/users/{userId}/balances", method = RequestMethod.GET)
+    List<BalanceDto> getUserBalances(@PathVariable String userId) throws Exception {
+        return ContractService.getUserBalances(userId);
     }
 
     @ApiOperation("Get token symbol")
     @RequestMapping(value = "/{contractAddress}/symbol", method = RequestMethod.GET)
     String symbol(@PathVariable String contractAddress) throws Exception {
         return ContractService.symbol(contractAddress);
-    }
-
-    @ApiOperation(
-            value = "Transfer tokens you own to another address",
-            notes = "Returns hex encoded transaction hash, and Transfer event if called")
-    @ApiImplicitParam(name = "privateFor",
-            value = "Comma separated list of public keys of enclave nodes that transaction is "
-                    + "private for",
-            paramType = "header",
-            dataType = "string")
-    @RequestMapping(value = "/{contractAddress}/transfer", method = RequestMethod.POST)
-    TransactionResponse<ContractService.TransferEventResponse> transfer(
-            HttpServletRequest request,
-            @PathVariable String contractAddress,
-            @RequestBody TransferRequest transferRequest) throws Exception {
-        return ContractService.transfer(
-                extractPrivateFor(request),
-                contractAddress,
-                transferRequest.getTo(),
-                transferRequest.getValue());
     }
 
     @ApiOperation(
@@ -206,11 +190,9 @@ public class Controller {
     }
 
     @ApiOperation("Returns a list of token transactions for a given user")
-    @RequestMapping(value = "/{contractAddress}/listtx/{userId}", method = RequestMethod.GET)
-    List<Transaction> listTransactions(
-            @PathVariable String contractAddress,
-            @PathVariable String userId) throws Exception {
-        return ContractService.listTransactions(contractAddress, userId);
+    @RequestMapping(value = "/" + API_VERSION + "/eth/users/{userId}/transactions", method = RequestMethod.GET)
+    List<Transaction> listTransactions(@PathVariable String userId) throws Exception {
+        return ContractService.listTransactions(userId);
     }
 
     @ApiOperation(
@@ -259,16 +241,15 @@ public class Controller {
     }
 
     @Data
-    static class TransferFromRequest {
-        private final String fromUserId;
-        private final String toAddress;
-        private final BigInteger value;
-    }
-
-    @Data
     static class TransferRequest {
-        private final String to;
-        private final BigInteger value;
+        private final String tokenSymbol;
+        private final String toUserId;
+        private final String toAddress;
+        private final BigInteger amount;
+        // signature
+        private final String sign;
+        // to prevent replay attack
+        private final long timestamp;
     }
 
     @Data
