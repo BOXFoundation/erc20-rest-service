@@ -1,31 +1,44 @@
 package fm.castbox.wallet.service.impl;
 
+import fm.castbox.wallet.constant.TransferConsts;
 import fm.castbox.wallet.domain.AddressHistory;
 import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.dto.BalanceDto;
+import fm.castbox.wallet.dto.EstFeeResponse;
 import fm.castbox.wallet.exception.UserIdAlreadyExistException;
 import fm.castbox.wallet.exception.UserNotExistException;
 import fm.castbox.wallet.repository.AddressHistoryRepository;
 import fm.castbox.wallet.repository.EthAccountRepository;
 import fm.castbox.wallet.service.EthService;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.sql.Timestamp;
 import java.util.Optional;
+
+import fm.castbox.wallet.service.Web3jWrapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
 import org.springframework.stereotype.Service;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
+import org.web3j.utils.Convert;
 
 @Service
+@Slf4j
 public class EthServiceImpl implements EthService {
 
   private static final String ADDRESS_PREFIX = "0x";
   private final EthAccountRepository ethAccountRepository;
   private final AddressHistoryRepository addressHistoryRepository;
   private final TextEncryptor textEncryptor;
+
+  @Autowired
+  private Web3jWrapper web3jService;
 
   @Autowired
   public EthServiceImpl(
@@ -93,6 +106,45 @@ public class EthServiceImpl implements EthService {
     double balance = accountOptional.get().getBalance();
     // TODO: fill in dollar amount
     return new BalanceDto("ETH", balance, 0);
+  }
+
+  @Override
+  public EstFeeResponse estimateTransferFee(String symbol, String amount){
+    try {
+      symbol = symbol.trim().toUpperCase();
+      BigDecimal bdAmount = new BigDecimal(amount);
+
+      if (!"BOX".equals(symbol) && !"ETH".equals(symbol)) {
+        return new EstFeeResponse(1, "Not Supported Token " + symbol);
+      }
+
+      BigInteger gasEst = web3jService.estimateTransferGas();
+      Long gasPrice = Long.decode(web3jService.ethGasPrice().send().getResult());
+      BigDecimal gweiFeeEst = (new BigDecimal(gasPrice.toString())).multiply(new BigDecimal(gasEst.toString()));
+      BigDecimal ethFeeEst = Convert.fromWei(gweiFeeEst, Convert.Unit.ETHER);
+      BigDecimal symbolFeeEst = BigDecimal.valueOf(0);
+      Long timestamp = System.currentTimeMillis();
+
+      if ("ETH".equals(symbol)) {
+        symbolFeeEst = ethFeeEst;
+      }
+
+      if ("BOX".equals(symbol)) {
+        // TODO: query market value of BOX
+        symbolFeeEst = ethFeeEst.multiply(TransferConsts.FIXED_ETH_BOX_RATE);
+      }
+
+      if (bdAmount.compareTo(symbolFeeEst) > 0){
+        return new EstFeeResponse(0, "OK",
+                symbolFeeEst.toString(), ethFeeEst.toString(), timestamp);
+      } else {
+        return new EstFeeResponse(2, "Transfer Fee May Be Insufficient",
+                symbolFeeEst.toString(), ethFeeEst.toString(), timestamp);
+      }
+    } catch (Exception e){
+      log.error(e.getMessage(), e);
+      return new EstFeeResponse(-1, "Error:" + e.getMessage());
+    }
   }
 
   private void save(EthAccount ethAccount) {

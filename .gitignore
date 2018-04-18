@@ -42,3 +42,5 @@ logs
 
 # ignore docker related files
 tools/ethereum_private_network/bootnode.txt
+tools/ethereum_private_network/ethereum_bootnode/*
+tools/ethereum_private_network/ethereum_miner/*
