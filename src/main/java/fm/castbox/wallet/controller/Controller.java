@@ -1,6 +1,7 @@
 package fm.castbox.wallet.controller;
 
 import fm.castbox.wallet.dto.BalanceDto;
+import io.swagger.annotations.ApiImplicitParams;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
@@ -16,6 +17,7 @@ import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -188,9 +190,21 @@ public class Controller {
     }
 
     @ApiOperation("Returns a list of token transactions for a given user")
+    @ApiImplicitParams({
+        @ApiImplicitParam(name = "page", dataType = "integer", paramType = "query",
+            value = "Results page you want to retrieve (0..N)"),
+        @ApiImplicitParam(name = "size", dataType = "integer", paramType = "query",
+            value = "Number of records per page."),
+        @ApiImplicitParam(name = "sort", allowMultiple = true, dataType = "string", paramType = "query",
+            value = "Sorting criteria in the format: property(,asc|desc). " +
+                "Default sort order is ascending. " +
+                "Multiple sort criteria are supported.")
+    })
     @RequestMapping(value = "/0.1/eth/users/{userId}/transactions", method = RequestMethod.GET)
-    List<Transaction> listTransactions(@PathVariable String userId) throws Exception {
-        return ContractService.listTransactions(userId);
+    List<Transaction> listTransactions(
+        @PathVariable String userId,
+        Pageable pageable) throws Exception {
+        return ContractService.listTransactions(userId, pageable);
     }
 
     @ApiOperation(

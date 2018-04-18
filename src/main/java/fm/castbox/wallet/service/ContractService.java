@@ -26,6 +26,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import org.web3j.protocol.Web3j;
@@ -350,12 +351,12 @@ public class ContractService {
     }
   }
 
-  public List<Transaction> listTransactions(String userId) {
+  public List<Transaction> listTransactions(String userId, Pageable pageable) {
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(userId, "ETH");
     }
-    return transactionRepository.findByAddress(accountOptional.get().getAddress());
+    return transactionRepository.findByAddress(accountOptional.get().getAddress(), pageable);
   }
 
   private HumanStandardToken load(String contractAddress, List<String> privateFor) {
