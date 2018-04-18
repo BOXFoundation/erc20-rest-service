@@ -85,12 +85,6 @@ public class ContractService {
     this.transactionRepository = transactionRepository;
 
     admin = Admin.build(new HttpService(nodeProperties.getNodeEndpoint()));
-    PersonalUnlockAccount personalUnlockAccount = admin
-        .personalUnlockAccount(nodeProperties.getFromAddress(), walletProperties.getPassphrase())
-        .send();
-    if ( null == personalUnlockAccount.accountUnlocked() ) {
-      throw new Exception("Unlocking account failed");
-    }
 
     web3j = Web3j.build(new HttpService(nodeProperties.getNodeEndpoint()));
   }
@@ -155,6 +149,8 @@ public class ContractService {
   public String deploy(
       List<String> privateFor, BigInteger initialAmount, String tokenName, BigInteger decimalUnits,
       String tokenSymbol) throws Exception {
+    unlockAccount();
+
     try {
       TransactionManager transactionManager = new ClientTransactionManager(
           quorum, nodeProperties.getFromAddress(), privateFor, ATTEMPTS, SLEEP_DURATION);
@@ -315,6 +311,7 @@ public class ContractService {
   public TransactionResponse<TransferEventResponse> transfer(
       List<String> privateFor, String contractAddress, String to, BigInteger value)
       throws Exception {
+    unlockAccount();
     HumanStandardToken humanStandardToken = load(contractAddress, privateFor);
     try {
       TransactionReceipt transactionReceipt = humanStandardToken
@@ -410,6 +407,14 @@ public class ContractService {
     } else {
       return new TransactionResponse<>(
           transactionReceipt.getTransactionHash());
+    }
+  }
+
+  private void unlockAccount() throws Exception {
+    PersonalUnlockAccount personalUnlockAccount = admin.
+        personalUnlockAccount(nodeProperties.getFromAddress(), walletProperties.getPassphrase()).send();
+    if (null == personalUnlockAccount.accountUnlocked()) {
+      throw new Exception("Unlocking account failed");
     }
   }
 
