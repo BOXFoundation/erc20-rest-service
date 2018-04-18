@@ -57,7 +57,7 @@ public class Web3jWrapper {
 
   public BigInteger estimateTransferGas() throws Exception {
       EthEstimateGas ethEstimateGas = ethEstimateGas(
-              Transaction.createEthCallTransaction(nodeProperties.getFromAddress(), null, ""))
+              Transaction.createEthCallTransaction(null, nodeProperties.getFromAddress(), ""))
               .sendAsync().get();
       return ethEstimateGas.getAmountUsed();
   }
