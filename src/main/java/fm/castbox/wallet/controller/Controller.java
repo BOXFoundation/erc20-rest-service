@@ -30,8 +30,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Api("ERC-20 token standard API")
 @RestController
 public class Controller {
-    private static final String API_VERSION = "0.1";
-
     private final ContractService ContractService;
 
     @Autowired
@@ -40,7 +38,7 @@ public class Controller {
     }
 
     @ApiOperation("WalletServerApplication configuration")
-    @RequestMapping(value = "/config", method = RequestMethod.GET,
+    @RequestMapping(value = "/0.1/config", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     NodeProperties config() {
         return ContractService.getConfig();
@@ -50,7 +48,7 @@ public class Controller {
             value = "Get user's address",
             notes = "Returns hex encoded address of the user"
     )
-    @RequestMapping(value = "/" + API_VERSION + "/eth/users/{userId}/address", method = RequestMethod.GET)
+    @RequestMapping(value = "/0.1/eth/users/{userId}/address", method = RequestMethod.GET)
     String getUserAddress(@PathVariable String userId) throws Exception {
         return ContractService.getUserAddress(userId);
     }
@@ -63,7 +61,7 @@ public class Controller {
                     + "private for",
             paramType = "header",
             dataType = "string")
-    @RequestMapping(value = "/deploy", method = RequestMethod.POST)
+    @RequestMapping(value = "/0.1/deploy", method = RequestMethod.POST)
     String deploy(
             HttpServletRequest request,
             @RequestBody ContractSpecification contractSpecification) throws Exception {
@@ -77,7 +75,7 @@ public class Controller {
     }
 
     @ApiOperation("Get token name")
-    @RequestMapping(value = "/{contractAddress}/name", method = RequestMethod.GET)
+    @RequestMapping(value = "/0.1/{contractAddress}/name", method = RequestMethod.GET)
     String name(@PathVariable String contractAddress) throws Exception {
         return ContractService.name(contractAddress);
     }
@@ -90,7 +88,7 @@ public class Controller {
                     + "private for",
             paramType = "header",
             dataType = "string")
-    @RequestMapping(value = "/{contractAddress}/approve", method = RequestMethod.POST)
+    @RequestMapping(value = "/0.1/{contractAddress}/approve", method = RequestMethod.POST)
     TransactionResponse<ContractService.ApprovalEventResponse> approve(
             HttpServletRequest request,
             @PathVariable String contractAddress,
@@ -103,7 +101,7 @@ public class Controller {
     }
 
     @ApiOperation("Get total supply of tokens")
-    @RequestMapping(value = "/{contractAddress}/totalSupply", method = RequestMethod.GET)
+    @RequestMapping(value = "/0.1/{contractAddress}/totalSupply", method = RequestMethod.GET)
     long totalSupply(@PathVariable String contractAddress) throws Exception {
         return ContractService.totalSupply(contractAddress);
     }
@@ -116,7 +114,7 @@ public class Controller {
                     + "private for",
             paramType = "header",
             dataType = "string")
-    @RequestMapping(value = "/" + API_VERSION + "/eth/users/{userId}/transfer", method = RequestMethod.POST)
+    @RequestMapping(value = "/0.1/eth/users/{userId}/transfer", method = RequestMethod.POST)
     TransactionResponse<ContractService.TransferEventResponse> transferFromUser(
             HttpServletRequest request,
             @PathVariable String userId,
@@ -131,13 +129,13 @@ public class Controller {
     }
 
     @ApiOperation("Get decimal precision of tokens")
-    @RequestMapping(value = "/{contractAddress}/decimals", method = RequestMethod.GET)
+    @RequestMapping(value = "/0.1/{contractAddress}/decimals", method = RequestMethod.GET)
     long decimals(@PathVariable String contractAddress) throws Exception {
         return ContractService.decimals(contractAddress);
     }
 
     @ApiOperation("Get contract version")
-    @RequestMapping(value = "/{contractAddress}/version", method = RequestMethod.GET)
+    @RequestMapping(value = "/0.1/{contractAddress}/version", method = RequestMethod.GET)
     String version(@PathVariable String contractAddress) throws Exception {
         return ContractService.version(contractAddress);
     }
@@ -146,13 +144,13 @@ public class Controller {
             value = "Get token balances of a user",
             notes = "Returns a dictionary like {“BOX”: “500”, “ETH”: “100”}")
     @RequestMapping(
-            value = "/" + API_VERSION + "/eth/users/{userId}/balances", method = RequestMethod.GET)
+            value = "/0.1/eth/users/{userId}/balances", method = RequestMethod.GET)
     List<BalanceDto> getUserBalances(@PathVariable String userId) throws Exception {
         return ContractService.getUserBalances(userId);
     }
 
     @ApiOperation("Get token symbol")
-    @RequestMapping(value = "/{contractAddress}/symbol", method = RequestMethod.GET)
+    @RequestMapping(value = "/0.1/{contractAddress}/symbol", method = RequestMethod.GET)
     String symbol(@PathVariable String contractAddress) throws Exception {
         return ContractService.symbol(contractAddress);
     }
@@ -166,7 +164,7 @@ public class Controller {
                     + "private for",
             paramType = "header",
             dataType = "string")
-    @RequestMapping(value = "/{contractAddress}/approveAndCall", method = RequestMethod.POST)
+    @RequestMapping(value = "/0.1/{contractAddress}/approveAndCall", method = RequestMethod.POST)
     TransactionResponse<ContractService.ApprovalEventResponse> approveAndCall(
             HttpServletRequest request,
             @PathVariable String contractAddress,
@@ -180,7 +178,7 @@ public class Controller {
     }
 
     @ApiOperation("Get quantity of tokens you can transfer on another token holder's behalf")
-    @RequestMapping(value = "/{contractAddress}/allowance", method = RequestMethod.GET)
+    @RequestMapping(value = "/0.1/{contractAddress}/allowance", method = RequestMethod.GET)
     long allowance(
             @PathVariable String contractAddress,
             @RequestParam String ownerAddress,
@@ -190,7 +188,7 @@ public class Controller {
     }
 
     @ApiOperation("Returns a list of token transactions for a given user")
-    @RequestMapping(value = "/" + API_VERSION + "/eth/users/{userId}/transactions", method = RequestMethod.GET)
+    @RequestMapping(value = "/0.1/eth/users/{userId}/transactions", method = RequestMethod.GET)
     List<Transaction> listTransactions(@PathVariable String userId) throws Exception {
         return ContractService.listTransactions(userId);
     }
@@ -198,7 +196,7 @@ public class Controller {
     @ApiOperation(
             value = "Subscribe to token transfer events of a specific contract address",
             notes = "Which can be unsubscribed later")
-    @RequestMapping(value = "/subscribe/{contractAddress}", method = RequestMethod.POST)
+    @RequestMapping(value = "/0.1/subscribe/{contractAddress}", method = RequestMethod.POST)
     void subscribeToContractTransferEvents(@PathVariable String contractAddress) throws Exception {
         ContractService.subscribeToContractTransferEvents(contractAddress);
     }
@@ -206,13 +204,13 @@ public class Controller {
     @ApiOperation(
             value = "Unsubscribe to token transfer events of a specific contract address",
             notes = "No longer receive this contract's transfer event")
-    @RequestMapping(value = "/unsubscribe/{contractAddress}", method = RequestMethod.POST)
+    @RequestMapping(value = "/0.1/unsubscribe/{contractAddress}", method = RequestMethod.POST)
     void ubsubscribeToContractTransferEvents(@PathVariable String contractAddress) throws Exception {
         ContractService.unsubscribeToContractTransferEvents(contractAddress);
     }
 
     @ApiOperation(value = "List all subscribed contract addresses")
-    @RequestMapping(value = "/listContractSubscriptions", method = RequestMethod.GET)
+    @RequestMapping(value = "/0.1/listContractSubscriptions", method = RequestMethod.GET)
     List<String> listContractSubscriptions() throws Exception {
         return ContractService.listContractSubscriptions();
     }

@@ -28,7 +28,7 @@ public class EthController {
   }
 
   @ApiOperation("Create an ETH address for a new user")
-  @PostMapping("/eth/address/create")
+  @PostMapping("/0.1/eth/address/create")
   public AddressDto createAddress(@Valid @RequestBody UserIdDto userIdDto) {
     Optional<String> address = ethService.createAddress(userIdDto.getUserId());
     if (address.isPresent()) {
@@ -39,7 +39,7 @@ public class EthController {
   }
 
   @ApiOperation("Change a new ETH address for an existing user")
-  @PutMapping("/eth/address/change")
+  @PutMapping("/0.1/eth/address/change")
   public AddressDto changeAddress(@Valid @RequestBody UserIdDto userIdDto) {
     Optional<String> address = ethService.changeAddress(userIdDto.getUserId());
     if (address.isPresent()) {
@@ -50,13 +50,13 @@ public class EthController {
   }
 
   @ApiOperation("Get an user's ETH balance")
-  @GetMapping("/eth/balance/{userId:[a-zA-Z0-9]{32}}")
+  @GetMapping("/0.1/eth/balance/{userId:[a-zA-Z0-9]{32}}")
   public BalanceDto balance(@PathVariable("userId") String userId) {
     return ethService.balanceOf(userId);
   }
 
   @ApiOperation("Estimate fee cost for a transfer intent")
-  @PostMapping("/eth/estimate-transfer-fee")
+  @PostMapping("/0.1/eth/estimate-transfer-fee")
   public EstFeeResponse estimateTransferFee(@RequestBody estFeeRequest estFeeRequest){
     return ethService.estimateTransferFee(estFeeRequest.getSymbol(), estFeeRequest.getAmount());
   }
