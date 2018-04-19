@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 @Data
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class EstFeeResponse {
+public class EstFeeRDto {
   private final int retCode;
   private final String retMsg;
 
@@ -21,7 +21,7 @@ public class EstFeeResponse {
   private String ethFeeEst;
   private Long timestamp;
 
-  public EstFeeResponse(int retCode, String retMsg){
+  public EstFeeRDto(int retCode, String retMsg){
     this.retCode = retCode;
     this.retMsg = retMsg;
   }

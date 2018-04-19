@@ -1,17 +1,14 @@
 package fm.castbox.wallet.controller;
 
-import fm.castbox.wallet.dto.AddressDto;
-import fm.castbox.wallet.dto.BalanceDto;
-import fm.castbox.wallet.dto.EstFeeResponse;
-import fm.castbox.wallet.dto.UserIdDto;
+import fm.castbox.wallet.dto.*;
 import fm.castbox.wallet.service.EthService;
+import fm.castbox.wallet.util.APISignUtils;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 
 import java.util.Optional;
 import javax.validation.Valid;
 
-import lombok.Data;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -57,14 +54,8 @@ public class EthController {
 
   @ApiOperation("Estimate fee cost for a transfer intent")
   @PostMapping("/0.1/eth/estimate-transfer-fee")
-  public EstFeeResponse estimateTransferFee(@RequestBody estFeeRequest estFeeRequest){
-    return ethService.estimateTransferFee(estFeeRequest.getSymbol(), estFeeRequest.getAmount());
-  }
-
-  @Data
-  static class estFeeRequest {
-    private final String symbol;
-    private final String amount;
+  public EstFeeRDto estimateTransferFee(@Valid @RequestBody EstFeeQDto estFeeQDto){
+    return ethService.estimateTransferFee(estFeeQDto);
   }
 
 }

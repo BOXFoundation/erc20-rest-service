@@ -2,7 +2,8 @@ package fm.castbox.wallet.service;
 
 
 import fm.castbox.wallet.dto.BalanceDto;
-import fm.castbox.wallet.dto.EstFeeResponse;
+import fm.castbox.wallet.dto.EstFeeQDto;
+import fm.castbox.wallet.dto.EstFeeRDto;
 
 import java.util.Optional;
 
@@ -14,5 +15,5 @@ public interface EthService {
 
   BalanceDto balanceOf(String userId);
 
-  EstFeeResponse estimateTransferFee(String symbol, String amount);
+  EstFeeRDto estimateTransferFee(EstFeeQDto estFeeQDto);
 }
