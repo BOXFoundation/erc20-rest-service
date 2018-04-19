@@ -22,6 +22,8 @@ contentbox:
     # passphrase to encrypt wallet files
     passphrase: TODO
     dir: TODO
+    api:
+      allowedPubkey: TODO
   # We use AES 256 to encrypt private keys
   aes256:
     password: TODO

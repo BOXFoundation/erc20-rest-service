@@ -22,6 +22,8 @@ contentbox:
     # passphrase to encrypt wallet files
     passphrase: "password"
     dir: "/User/frankdai/wallet_files"
+    api:
+      allowedPubkey: "BAK2uyd5XgVlj3JB0jA00dyPm4j7EOj4SLtN1LN9RCWc4uuemwjr22M2OQUOMqP4dSSL4h9iOu0jtmQDlk00bkI="
   # We use AES 256 to encrypt private keys
   aes256:
     password: 25fd9747c488b18a1d60723a4e311c0f200059f65c4d25a3079239c29a635d5a2406ece916aab23a # mypassw0rd

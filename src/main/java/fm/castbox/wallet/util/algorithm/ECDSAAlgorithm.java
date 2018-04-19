@@ -1,0 +1,303 @@
+package fm.castbox.wallet.util.algorithm;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+
+import fm.castbox.wallet.util.Constants;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.DERSequenceGenerator;
+import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.x9.X9ECParameters;
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.crypto.ec.CustomNamedCurves;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.crypto.signers.ECDSASigner;
+import org.bouncycastle.crypto.signers.HMacDSAKCalculator;
+import org.bouncycastle.jce.ECNamedCurveTable;
+import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
+import org.bouncycastle.math.ec.ECPoint;
+
+
+import com.google.common.base.Objects;
+import org.bouncycastle.math.ec.FixedPointUtil;
+
+public class ECDSAAlgorithm {
+	
+	
+	public static final ECDomainParameters CURVE;
+	public static final BigInteger HALF_CURVE_ORDER;
+	static {
+		X9ECParameters CURVE_PARAMS = CustomNamedCurves.getByName("secp256k1");
+		// Tell Bouncy Castle to precompute data that's needed during secp256k1
+		// calculations. Increasing the width
+		// number makes calculations faster, but at a cost of extra memory usage
+		// and with decreasing returns. 12 was
+		// picked after consulting with the BC team.
+		FixedPointUtil.precompute(CURVE_PARAMS.getG(), 12);
+		CURVE = new ECDomainParameters(CURVE_PARAMS.getCurve(), CURVE_PARAMS.getG(), CURVE_PARAMS.getN(),
+				CURVE_PARAMS.getH());
+		HALF_CURVE_ORDER = CURVE_PARAMS.getN().shiftRight(1);
+	}
+
+	public static String generatePrivateKey() throws Exception {
+		SecureRandom secureRandom;
+		try {
+			secureRandom = SecureRandom.getInstance(Constants.RANDOM_NUMBER_ALGORITHM,
+					Constants.RANDOM_NUMBER_ALGORITHM_PROVIDER);
+		} catch (Exception e) {
+			secureRandom = new SecureRandom();
+		}
+		// Generate the key, skipping as many as desired.
+		byte[] privateKeyAttempt = new byte[32];
+		secureRandom.nextBytes(privateKeyAttempt);
+		BigInteger privateKeyCheck = new BigInteger(1, privateKeyAttempt);
+		while (privateKeyCheck.compareTo(BigInteger.ZERO) == 0 || privateKeyCheck.compareTo(Constants.MAXPRIVATEKEY) == 1) {
+			secureRandom.nextBytes(privateKeyAttempt);
+			privateKeyCheck = new BigInteger(1, privateKeyAttempt);
+		}
+		System.out.println(Hex.encodeHexString(privateKeyAttempt));
+		String result = Base64.encodeBase64String(privateKeyAttempt);
+		result = result.replaceAll("[\\s*\t\n\r]", "");
+		return result;
+	}
+	
+	public static String generatePublicKey(String priateKeyBase64String, boolean encode) throws Exception {
+		try {
+			byte[] privateKeyBytes = Base64.decodeBase64(priateKeyBase64String);
+			ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec("secp256k1");
+			ECPoint pointQ = spec.getG().multiply(new BigInteger(1, privateKeyBytes));
+			String result = Base64.encodeBase64String(pointQ.getEncoded(false));
+			result = result.replaceAll("[\\s*\t\n\r]", "");
+			return result;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	public static String generatePublicKey(String priateKeyBase64String) throws Exception {
+		return generatePublicKey(priateKeyBase64String, false);
+	}
+	
+	public static String decodePublicKey(String encodePubKeyBase64String) throws Exception {
+		try {
+			byte[] encodePubkeyBytes = Base64.decodeBase64(encodePubKeyBase64String);
+			ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec("secp256k1");
+			ECPoint pointQ = spec.getG().getCurve().decodePoint(encodePubkeyBytes);
+			String result = Base64.encodeBase64String(pointQ.getEncoded(false));
+			result = result.replaceAll("[\\s*\t\n\r]", "");
+			return result;
+		} catch(Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	public static String getAddress(byte[] keyBytes, int...version) throws Exception {
+		byte[] hashSha256 = BaseAlgorithm.encode("SHA-256", keyBytes);
+		MessageDigest messageDigest = MessageDigest.getInstance("RipeMD160");
+		messageDigest.update(hashSha256);
+		byte[] hashRipeMD160 = messageDigest.digest();
+		byte[] versionHashBytes = new byte[1 + hashRipeMD160.length];
+		if(version == null || version.length == 0) {
+			versionHashBytes[0] = 0;
+		} else {
+			versionHashBytes[0] = (byte) version[0];
+		}
+		System.arraycopy(hashRipeMD160, 0, versionHashBytes, 1, hashRipeMD160.length);
+		byte[] checkSumBytes = BaseAlgorithm.encodeTwice("SHA-256", versionHashBytes);
+		byte[] rawAddr = new byte[versionHashBytes.length + 4];
+		System.arraycopy(versionHashBytes, 0, rawAddr, 0, versionHashBytes.length);
+		System.arraycopy(checkSumBytes, 0, rawAddr, versionHashBytes.length, 4);
+		return Base58Algorithm.encode(rawAddr);
+	}
+	
+	public static String sign(String privateKey, byte[] data, boolean isHash256) throws Exception {
+		byte[] hash256 = data;
+		if(!isHash256) { //未hash256 encode的字节数组
+			hash256 = BaseAlgorithm.encode("SHA-256", data);
+		}
+		ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
+		BigInteger pri = new BigInteger(1, Base64.decodeBase64(privateKey));
+		ECPrivateKeyParameters privKey = new ECPrivateKeyParameters(pri, CURVE);
+		signer.init(true, privKey);
+		BigInteger[] components = signer.generateSignature(hash256);
+		byte[] content = new ECDSASignature(components[0], components[1]).toCanonicalised().encodeToDER();
+		String result = Base64.encodeBase64String(content);
+		result = result.replaceAll("[\\s*\t\n\r]", "");
+		return result;
+	}
+	
+	public static String sign(String privateKey, byte[] data) throws Exception {
+		byte[] hash256 = data;
+		ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
+		BigInteger pri = new BigInteger(1, Base64.decodeBase64(privateKey));
+		ECPrivateKeyParameters privKey = new ECPrivateKeyParameters(pri, CURVE);
+		signer.init(true, privKey);
+		BigInteger[] components = signer.generateSignature(hash256);
+		byte[] content = new ECDSASignature(components[0], components[1]).toCanonicalised().encodeToDER();
+		String result = Base64.encodeBase64String(content);
+		result = result.replaceAll("[\\s*\t\n\r]", "");
+		return result;
+	}
+	
+	public static boolean verify(String srcStr, String sign, String pubKey) throws Exception {
+		byte[] hash256 = BaseAlgorithm.encode("SHA-256", srcStr.getBytes("UTF-8"));
+		ECDSASignature eCDSASignature = ECDSASignature.decodeFromDER(Base64.decodeBase64(sign));
+		ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
+		ECPoint pub = CURVE.getCurve().decodePoint(Base64.decodeBase64(pubKey));
+		ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(pub.getEncoded()), CURVE);
+		signer.init(false, params);
+	    return signer.verifySignature(hash256, eCDSASignature.r, eCDSASignature.s);
+	}
+	
+	public static boolean verify(byte[] bytes, boolean isHash256, String sign, String pubKey) throws Exception {
+		byte[] hash256 = bytes;
+		if(!isHash256) {
+			hash256 = BaseAlgorithm.encode("SHA-256", bytes);
+		}
+		ECDSASignature eCDSASignature = ECDSASignature.decodeFromDER(Base64.decodeBase64(sign));
+		ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
+		ECPoint pub = CURVE.getCurve().decodePoint(Base64.decodeBase64(pubKey));
+		ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(pub.getEncoded()), CURVE);
+		signer.init(false, params);
+	    return signer.verifySignature(hash256, eCDSASignature.r, eCDSASignature.s);
+	}
+	
+	public static boolean VerifyRenSign(String pubKey, byte[] bytes, String sign) {
+		byte[] hash256 = bytes;
+		ECDSASignature eCDSASignature = ECDSASignature.decodeFromDER(Base64.decodeBase64(sign));
+		ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
+		ECPoint pub = CURVE.getCurve().decodePoint(Base64.decodeBase64(pubKey));
+		ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(pub.getEncoded()), CURVE);
+		signer.init(false, params);
+	    return signer.verifySignature(hash256, eCDSASignature.r, eCDSASignature.s);
+	}
+	
+	public static class ECDSASignature {
+		/** The two components of the signature. */
+		public final BigInteger r, s;
+
+		/**
+		 * Constructs a signature with the given components. Does NOT
+		 * automatically canonicalise the signature.
+		 */
+		public ECDSASignature(BigInteger r, BigInteger s) {
+			this.r = r;
+			this.s = s;
+		}
+
+		/**
+		 * Returns true if the S component is "low", that means it is below
+		 * {@link ECKey#HALF_CURVE_ORDER}. See <a href=
+		 * "https://github.com/bitcoin/bips/blob/master/bip-0062.mediawiki#Low_S_values_in_signatures">
+		 * BIP62</a>.
+		 */
+		public boolean isCanonical() {
+			return s.compareTo(HALF_CURVE_ORDER) <= 0;
+		}
+
+		/**
+		 * Will automatically adjust the S component to be less than or equal to
+		 * half the curve order, if necessary. This is required because for
+		 * every signature (r,s) the signature (r, -s (mod N)) is a valid
+		 * signature of the same message. However, we dislike the ability to
+		 * modify the bits of a Bitcoin transaction after it's been signed, as
+		 * that violates various assumed invariants. Thus in future only one of
+		 * those forms will be considered legal and the other will be banned.
+		 */
+		public ECDSASignature toCanonicalised() {
+			if (!isCanonical()) {
+				// The order of the curve is the number of valid points that
+				// exist on that curve. If S is in the upper
+				// half of the number of valid points, then bring it back to the
+				// lower half. Otherwise, imagine that
+				// N = 10
+				// s = 8, so (-8 % 10 == 2) thus both (r, 8) and (r, 2) are
+				// valid solutions.
+				// 10 - 8 == 2, giving us always the latter solution, which is
+				// canonical.
+				return new ECDSASignature(r, CURVE.getN().subtract(s));
+			} else {
+				return this;
+			}
+		}
+
+		/**
+		 * DER is an international standard for serializing data structures
+		 * which is widely used in cryptography. It's somewhat like protocol
+		 * buffers but less convenient. This method returns a standard DER
+		 * encoding of the signature, as recognized by OpenSSL and other
+		 * libraries.
+		 */
+		public byte[] encodeToDER() {
+			try {
+				return derByteStream().toByteArray();
+			} catch (IOException e) {
+				throw new RuntimeException(e); // Cannot happen.
+			}
+		}
+
+		public static ECDSASignature decodeFromDER(byte[] bytes) {
+			ASN1InputStream decoder = null;
+			try {
+				decoder = new ASN1InputStream(bytes);
+				DLSequence seq = (DLSequence) decoder.readObject();
+				if (seq == null)
+					throw new RuntimeException("Reached past end of ASN.1 stream.");
+				ASN1Integer r, s;
+				try {
+					r = (ASN1Integer) seq.getObjectAt(0);
+					s = (ASN1Integer) seq.getObjectAt(1);
+				} catch (ClassCastException e) {
+					throw new IllegalArgumentException(e);
+				}
+				// OpenSSL deviates from the DER spec by interpreting these
+				// values as unsigned, though they should not be
+				// Thus, we always use the positive versions. See:
+				// http://r6.ca/blog/20111119T211504Z.html
+				return new ECDSASignature(r.getPositiveValue(), s.getPositiveValue());
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			} finally {
+				if (decoder != null)
+					try {
+						decoder.close();
+					} catch (IOException x) {
+					}
+			}
+		}
+
+		protected ByteArrayOutputStream derByteStream() throws IOException {
+			// Usually 70-72 bytes.
+			ByteArrayOutputStream bos = new ByteArrayOutputStream(72);
+			DERSequenceGenerator seq = new DERSequenceGenerator(bos);
+			seq.addObject(new ASN1Integer(r));
+			seq.addObject(new ASN1Integer(s));
+			seq.close();
+			return bos;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o)
+				return true;
+			if (o == null || getClass() != o.getClass())
+				return false;
+			ECDSASignature other = (ECDSASignature) o;
+			return r.equals(other.r) && s.equals(other.s);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hashCode(r, s);
+		}
+	}
+
+}
