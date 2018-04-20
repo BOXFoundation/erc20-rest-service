@@ -152,7 +152,7 @@ public class ECDSAAlgorithm {
 		ECDSASignature eCDSASignature = ECDSASignature.decodeFromDER(Base64.decodeBase64(sign));
 		ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
 		ECPoint pub = CURVE.getCurve().decodePoint(Base64.decodeBase64(pubKey));
-		ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(pub.getEncoded()), CURVE);
+		ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(pub.getEncoded(false)), CURVE);
 		signer.init(false, params);
 	    return signer.verifySignature(hash256, eCDSASignature.r, eCDSASignature.s);
 	}
@@ -165,7 +165,7 @@ public class ECDSAAlgorithm {
 		ECDSASignature eCDSASignature = ECDSASignature.decodeFromDER(Base64.decodeBase64(sign));
 		ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
 		ECPoint pub = CURVE.getCurve().decodePoint(Base64.decodeBase64(pubKey));
-		ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(pub.getEncoded()), CURVE);
+		ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(pub.getEncoded(false)), CURVE);
 		signer.init(false, params);
 	    return signer.verifySignature(hash256, eCDSASignature.r, eCDSASignature.s);
 	}
@@ -175,7 +175,7 @@ public class ECDSAAlgorithm {
 		ECDSASignature eCDSASignature = ECDSASignature.decodeFromDER(Base64.decodeBase64(sign));
 		ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
 		ECPoint pub = CURVE.getCurve().decodePoint(Base64.decodeBase64(pubKey));
-		ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(pub.getEncoded()), CURVE);
+		ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(pub.getEncoded(false)), CURVE);
 		signer.init(false, params);
 	    return signer.verifySignature(hash256, eCDSASignature.r, eCDSASignature.s);
 	}
