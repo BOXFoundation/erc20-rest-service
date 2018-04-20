@@ -22,7 +22,6 @@ import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.properties.WalletProperties;
 import fm.castbox.wallet.repository.EthAccountRepository;
 import fm.castbox.wallet.repository.TransactionRepository;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,15 +37,12 @@ import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.EthGetCode;
-import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.quorum.Quorum;
 import org.web3j.quorum.tx.ClientTransactionManager;
 import org.web3j.tx.TransactionManager;
-import org.web3j.tx.Transfer;
-import org.web3j.utils.Convert;
 import rx.Subscription;
 
 import static org.web3j.tx.Contract.GAS_LIMIT;
@@ -437,12 +433,16 @@ public class ContractService {
     }
   }
 
-  public List<Transaction> listTransactions(String userId, Pageable pageable) {
+  public List<Transaction> getTransactions(String userId, Pageable pageable) {
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(userId, "ETH");
     }
     return transactionRepository.findByAddress(accountOptional.get().getAddress(), pageable);
+  }
+
+  public Transaction getTransaction(Long id) {
+    return transactionRepository.findById(id).get();
   }
 
   private HumanStandardToken load(String contractAddress, List<String> privateFor) {

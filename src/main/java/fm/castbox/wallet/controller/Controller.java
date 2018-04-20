@@ -201,10 +201,16 @@ public class Controller {
                 "Multiple sort criteria are supported.")
     })
     @RequestMapping(value = "/0.1/eth/users/{userId}/transactions", method = RequestMethod.GET)
-    List<Transaction> listTransactions(
+    List<Transaction> getTransactions(
         @PathVariable String userId,
         Pageable pageable) throws Exception {
-        return ContractService.listTransactions(userId, pageable);
+        return ContractService.getTransactions(userId, pageable);
+    }
+
+    @ApiOperation(value = "Get details of a transaction", notes = "id is integer, not txid")
+    @RequestMapping(value = "/0.1/eth/transaction/{id}", method = RequestMethod.GET)
+    Transaction getTransaction(@PathVariable Long id) throws Exception {
+        return ContractService.getTransaction(id);
     }
 
     @ApiOperation(
