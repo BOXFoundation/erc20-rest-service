@@ -5,6 +5,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -12,6 +13,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.Length;
 
+// account on Ethereum, including eth and ERC-20 tokens
 @Entity
 @Table(name = "eth_account")
 @Data
@@ -35,7 +37,11 @@ public class EthAccount {
   @Column(nullable = false, columnDefinition = "CHAR(64)")
   private String privateKey;
 
-  private long balance;
+  @Min(value = 0L, message = "Balance cannot be negative")
+  private long ethBalance;
+
+  @Min(value = 0L, message = "Balance cannot be negative")
+  private long boxBalance;
 
   @NotNull
   @Column(nullable = false)

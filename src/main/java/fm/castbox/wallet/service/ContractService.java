@@ -3,6 +3,7 @@ package fm.castbox.wallet.service;
 import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.dto.BalanceDto;
 import fm.castbox.wallet.exception.UserNotExistException;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.properties.WalletProperties;
 import fm.castbox.wallet.repository.EthAccountRepository;
 import fm.castbox.wallet.repository.TransactionRepository;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,11 +36,17 @@ import org.web3j.protocol.admin.Admin;
 import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
 
 import org.web3j.protocol.core.DefaultBlockParameter;
+import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.methods.response.EthGetCode;
+import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
+import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.quorum.Quorum;
 import org.web3j.quorum.tx.ClientTransactionManager;
 import org.web3j.tx.TransactionManager;
+import org.web3j.tx.Transfer;
+import org.web3j.utils.Convert;
 import rx.Subscription;
 
 import static org.web3j.tx.Contract.GAS_LIMIT;
@@ -49,6 +57,7 @@ import static org.web3j.tx.ManagedTransaction.GAS_PRICE;
  */
 @Service
 public class ContractService {
+
   // TODO: full node does not return private key, may fill in later
   private static final String DUMMY_PRIVATE_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
@@ -88,41 +97,97 @@ public class ContractService {
     admin = Admin.build(new HttpService(nodeProperties.getNodeEndpoint()));
 
     web3j = Web3j.build(new HttpService(nodeProperties.getNodeEndpoint()));
+
+    subscribeToEthTransferEvents();
   }
 
-  public void subscribeToContractTransferEvents(String contractAddress) {
+  private void receiveTokens(String tokenSymbol, String txId, String from, String to,
+      BigInteger amount) {
+    System.out.println(
+        " rx token  : " + tokenSymbol + "\n"
+            + " txId    : " + txId + "\n"
+            + " from    : " + from + "\n"
+            + " to      : " + to + "\n"
+            + " amount   : " + amount);
+    Optional<EthAccount> accountOptional = ethAccountRepository.findByAddress(to);
+    if (!accountOptional.isPresent()) {
+      return;
+    }
+
+    EthAccount toEthAccount = accountOptional.get();
+    long transferValue = amount.longValueExact();
+    switch (tokenSymbol) {
+      case "BOX":
+        toEthAccount.setBoxBalance(toEthAccount.getBoxBalance() + transferValue);
+        break;
+      case "ETH":
+        toEthAccount.setEthBalance(toEthAccount.getEthBalance() + transferValue);
+        break;
+      default:
+        System.out.println("Unsupported token: " + tokenSymbol);
+        return;
+    }
+    ethAccountRepository.save(toEthAccount);
+    // Only append tx not saved before. Otherwise previous send tx will be overwritten with main account as from address
+    if (!transactionRepository.existsByTxId(txId)) {
+      Timestamp now = new Timestamp(System.currentTimeMillis());
+      transactionRepository.save(new Transaction(txId, tokenSymbol, "" /* fromUserId */, from,
+          "" /* toUserId */, to, amount.longValueExact(), now));
+    }
+  }
+
+  // is tx contract related: creation or call
+  boolean isContractTx(org.web3j.protocol.core.methods.response.Transaction tx) throws RuntimeException {
+    if (tx.getTo() == null) {
+      // contract creation tx
+      return true;
+    }
+
+    try {
+      EthGetCode ethGetCode = web3j.ethGetCode(tx.getTo(), DefaultBlockParameterName.LATEST).send();
+      // externally owned address has no code and getCode() returns "0x"
+      return ethGetCode.getCode().length() > 2;
+    } catch (Exception e) {
+      // convert to unchecked RuntimeException since subscribe() complains checked exception
+      throw new RuntimeException(e.toString());
+    }
+  }
+
+  private void subscribeToEthTransferEvents() throws Exception {
+    web3j.transactionObservable().subscribe(
+        txEvent -> {
+          // only monitor eth transfer tx between externally owned accounts, not contract creation/call
+          if (isContractTx(txEvent)) {
+            System.out.println("Contract creation or call transaction, ignore");
+            return;
+          }
+          receiveTokens("ETH", txEvent.getHash(), txEvent.getFrom(), txEvent.getTo(),
+              txEvent.getValue());
+        }, Throwable::printStackTrace);
+  }
+
+  public void subscribeToContractTransferEvents(String contractAddress) throws Exception {
     if (contractSubscriptions.containsKey(contractAddress)) {
       System.out.println("Already subscribed to contract " + contractAddress);
       return;
     }
 
     HumanStandardToken humanStandardToken = load(contractAddress);
+    String tokenSymbol;
+    try {
+      tokenSymbol = symbol(contractAddress);
+    } catch (Exception e) {
+      throw e;
+    }
+
     Subscription sub = web3j.blockObservable(false).subscribe(block -> {
       BigInteger blockNum = block.getBlock().getNumber();
       DefaultBlockParameter blockParameter = DefaultBlockParameter.valueOf(blockNum);
       System.out.println("Received block: " + blockNum);
       humanStandardToken.transferEventObservable(blockParameter, blockParameter)
           .subscribe(txEvent -> {
-            System.out.println(
-                " transfer event :" + txEvent._transactionHash + "\n"
-                    + " from    : " + txEvent._from + "\n"
-                    + " to      : " + txEvent._to + "\n"
-                    + " value   : " + txEvent._value);
-            Optional<EthAccount> accountOptional = ethAccountRepository.findByAddress(txEvent._to);
-            if (!accountOptional.isPresent()) {
-              return;
-            }
-            EthAccount toEthAccount = accountOptional.get();
-            long transferValue = txEvent._value.longValueExact();
-            toEthAccount.setBalance(toEthAccount.getBalance() + transferValue);
-            ethAccountRepository.save(toEthAccount);
-            // Only append tx not saved before. Otherwise previous send tx will be overwritten with main account as from address
-            String txId = txEvent._transactionHash;
-            if (!transactionRepository.existsByTxId(txId)) {
-              Timestamp now = new Timestamp(System.currentTimeMillis());
-              transactionRepository.save(new Transaction(txId, "" /* fromUserId */, txEvent._from,
-                  "" /* toUserId */, txEvent._to, txEvent._value.longValueExact(), now));
-            }
+            receiveTokens(tokenSymbol, txEvent._transactionHash, txEvent._from, txEvent._to,
+                txEvent._value);
           });
     }, Throwable::printStackTrace);
     contractSubscriptions.put(contractAddress, sub);
@@ -160,7 +225,8 @@ public class ContractService {
           initialAmount, tokenName, decimalUnits,
           tokenSymbol).send();
       String contractAddress = humanStandardToken.getContractAddress();
-      ContractInstance contractInstance = new ContractInstance(contractAddress, initialAmount, tokenName, decimalUnits, tokenSymbol);
+      ContractInstance contractInstance = new ContractInstance(contractAddress, initialAmount,
+          tokenName, decimalUnits, tokenSymbol);
       // TODO: symbol duplicate detection
       tokenSymbolContracts.put(tokenSymbol, contractInstance);
       subscribeToContractTransferEvents(contractAddress);
@@ -180,7 +246,7 @@ public class ContractService {
         .getAccountId();
     // initial balance 0
     Timestamp now = new Timestamp(System.currentTimeMillis());
-    ethAccountRepository.save(new EthAccount(userId, address, DUMMY_PRIVATE_KEY, 0, now, now));
+    ethAccountRepository.save(new EthAccount(userId, address, DUMMY_PRIVATE_KEY, 0, 0, now, now));
     return address;
   }
 
@@ -189,9 +255,10 @@ public class ContractService {
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(userId, "BOX");
     }
-    double balance = accountOptional.get().getBalance();
+    EthAccount account = accountOptional.get();
     // TODO: fill in dollar amount
-    return Arrays.asList(new BalanceDto("BOX", balance, 0));
+    return Arrays.asList(new BalanceDto("ETH", account.getEthBalance(), 0),
+        new BalanceDto("BOX", account.getBoxBalance(), 0));
   }
 
   public String name(String contractAddress) throws Exception {
@@ -226,8 +293,13 @@ public class ContractService {
   }
 
   public TransactionResponse<TransferEventResponse> transferFromUser(
-      List<String> privateFor, String tokenSymbol, String fromUserId, String toUserId, String toAddress,
+      List<String> privateFor, String tokenSymbol, String fromUserId, String toUserId,
+      String toAddress,
       BigInteger value) throws Exception {
+    if (!tokenSymbol.equals("ETH") && !tokenSymbol.equals("BOX")) {
+      throw new RuntimeException("Unsupported token: " + tokenSymbol);
+    }
+
     if (toUserId.isEmpty() && toAddress.isEmpty()) {
       throw new RuntimeException("toUserId and toAddress cannot be both missing");
     }
@@ -243,12 +315,6 @@ public class ContractService {
       toAddress = toAddressOptional.get().getAddress();
     }
 
-    ContractInstance contractInstance = tokenSymbolContracts.get(tokenSymbol);
-    if (contractInstance == null) {
-      throw new RuntimeException("Unknown contract for token " + tokenSymbol);
-    }
-    String contractAddress = contractInstance.getAddress();
-
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(fromUserId);
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(fromUserId, "ETH");
@@ -257,18 +323,25 @@ public class ContractService {
     EthAccount fromEthAccount = accountOptional.get();
     long transferValue = value.longValueExact();
 
-    if (fromEthAccount.getBalance() < transferValue) {
-      throw new Exception("Insufficient fund");
+    long balance = tokenSymbol.equals("ETH") ? fromEthAccount.getEthBalance() : fromEthAccount.getBoxBalance();
+    if (balance < transferValue) {
+      throw new RuntimeException("Insufficient fund");
     }
 
     // transfer from main account, not fromEthAccount
-    TransactionResponse<TransferEventResponse> txResponse =
-        transfer(privateFor, contractAddress, toAddress, value);
-    fromEthAccount.setBalance(fromEthAccount.getBalance() - transferValue);
+    TransactionResponse<TransferEventResponse> txResponse;
+    if (tokenSymbol.equals("ETH")) {
+      txResponse = transferEth(toAddress, value);
+      fromEthAccount.setEthBalance(balance - transferValue);
+    } else {
+      txResponse = transfer(privateFor, tokenSymbol2ContractAddr(tokenSymbol), toAddress, value);
+      fromEthAccount.setBoxBalance(balance - transferValue);
+    }
     ethAccountRepository.save(fromEthAccount);
     Timestamp now = new Timestamp(System.currentTimeMillis());
     transactionRepository.save(
-        new Transaction(txResponse.getTransactionHash(), "" /* fromUserId */, fromEthAccount.getAddress(), "" /* toUserId */, toAddress,
+        new Transaction(txResponse.getTransactionHash(), tokenSymbol, "" /* fromUserId */,
+            fromEthAccount.getAddress(), "" /* toUserId */, toAddress,
             transferValue, now));
     return txResponse;
   }
@@ -321,6 +394,19 @@ public class ContractService {
     } catch (InterruptedException | ExecutionException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public TransactionResponse<TransferEventResponse> transferEth(String to, BigInteger value)
+      throws Exception {
+    unlockAccount();
+
+    BigInteger nonce = getNonce(nodeProperties.getFromAddress());
+    org.web3j.protocol.core.methods.request.Transaction transaction = org.web3j.protocol.core.methods.request.Transaction
+        .createEtherTransaction(
+            nodeProperties.getFromAddress(), nonce, GAS_PRICE, GAS_LIMIT, to, value);
+
+    EthSendTransaction ethSendTransaction = web3j.ethSendTransaction(transaction).send();
+    return new TransactionResponse<>(ethSendTransaction.getTransactionHash());
   }
 
   public TransactionResponse<ApprovalEventResponse> approveAndCall(
@@ -413,11 +499,25 @@ public class ContractService {
 
   private void unlockAccount() throws Exception {
     PersonalUnlockAccount personalUnlockAccount = admin.
-        personalUnlockAccount(nodeProperties.getFromAddress(), walletProperties.getPassphrase()).send();
+        personalUnlockAccount(nodeProperties.getFromAddress(), walletProperties.getPassphrase())
+        .send();
     if (null == personalUnlockAccount.accountUnlocked()) {
       throw new Exception("Unlocking account failed");
     }
   }
+
+  BigInteger getNonce(String address) throws Exception {
+    return web3j.ethGetTransactionCount(
+        address, DefaultBlockParameterName.LATEST).send().getTransactionCount();
+  }
+
+  String tokenSymbol2ContractAddr(String tokenSymbol) {
+    ContractInstance contractInstance = tokenSymbolContracts.get(tokenSymbol);
+    if (contractInstance == null) {
+      throw new RuntimeException("Unknown contract for token " + tokenSymbol);
+    }
+    return contractInstance.getAddress();
+}
 
   @Getter
   @Setter

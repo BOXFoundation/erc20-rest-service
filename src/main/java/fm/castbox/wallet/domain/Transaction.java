@@ -3,17 +3,13 @@ package fm.castbox.wallet.domain;
 import java.sql.Timestamp;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import org.hibernate.validator.constraints.Length;
 
 @Entity
 @Data
@@ -23,6 +19,10 @@ public class Transaction {
   @Id
   // TODO: only applies to on-chain tx
   private String txId;
+
+  @Length(min = 2)
+  @Column(nullable = false)
+  private String tokenSymbol;
 
   private String fromUserId;
   // Note: for withdraw, this is sender's ethAddress. However, it is our main account ethAddress on chain as viewed in a block explorer
