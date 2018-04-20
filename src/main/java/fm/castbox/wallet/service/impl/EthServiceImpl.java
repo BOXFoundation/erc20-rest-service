@@ -144,7 +144,7 @@ public class EthServiceImpl implements EthService {
       }
     } catch (Exception e){
       log.error(e.getMessage(), e);
-      return new EstFeeRDto(-1, "Error:" + e.getMessage());
+      return new EstFeeRDto(-1, "Server Internal Error!");
     }
   }
 

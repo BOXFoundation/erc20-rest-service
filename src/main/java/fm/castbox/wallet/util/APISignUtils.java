@@ -13,6 +13,7 @@ import fm.castbox.wallet.util.algorithm.ECDSAAlgorithm;
 import org.apache.commons.beanutils.PropertyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 public class APISignUtils {
@@ -70,10 +71,17 @@ public class APISignUtils {
   }
 
   public static boolean verifySign(String unsignedString, String sign) throws Exception {
-    return verifySign(apiProperties.getAllowedPubkey(), unsignedString, sign);
+    String keyFromConfig = Optional.ofNullable(apiProperties).orElse(new APIProperties()).getAllowedPubkey();
+    return verifySign(keyFromConfig, unsignedString, sign);
   }
 
   public static boolean verifySign(String pubKey, String unsignedString, String sign) throws Exception {
+    if (StringUtils.isEmpty(pubKey) || StringUtils.isEmpty(unsignedString) || StringUtils.isEmpty(sign)) {
+      throw new RuntimeException("Param" + (StringUtils.isEmpty(pubKey) ? " 'pubKey'" : "")
+                                          + (StringUtils.isEmpty(unsignedString) ? " 'unsignedString'" : "")
+                                          + (StringUtils.isEmpty(sign) ? " 'sign'" : "")
+                                          + " could not be empty");
+    }
     try {
       return ECDSAAlgorithm.verify(unsignedString, sign, pubKey);
     } catch (RuntimeException e) {
