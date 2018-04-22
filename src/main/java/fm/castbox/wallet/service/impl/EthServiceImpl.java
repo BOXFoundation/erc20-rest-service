@@ -120,9 +120,9 @@ public class EthServiceImpl implements EthService {
       }
 
       BigInteger gasEst = web3jService.estimateTransferGas();
-      Long gasPrice = Long.decode(web3jService.ethGasPrice().send().getResult());
-      BigDecimal gweiFeeEst = (new BigDecimal(gasPrice.toString())).multiply(new BigDecimal(gasEst.toString()));
-      BigDecimal ethFeeEst = Convert.fromWei(gweiFeeEst, Convert.Unit.ETHER);
+      BigInteger gasPrice = web3jService.ethGasPrice().send().getGasPrice();
+      BigInteger gweiFeeEst = gasPrice.multiply(gasEst);
+      BigDecimal ethFeeEst = Convert.fromWei(new BigDecimal(gweiFeeEst), Convert.Unit.ETHER);
       BigDecimal symbolFeeEst = BigDecimal.valueOf(0);
       Long timestamp = System.currentTimeMillis();
 
