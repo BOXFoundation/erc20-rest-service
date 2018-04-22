@@ -1,9 +1,10 @@
 package fm.castbox.wallet.service;
 
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.dto.BalanceDto;
 import fm.castbox.wallet.exception.UserNotExistException;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.stereotype.Service;
 
 import org.web3j.protocol.Web3j;
@@ -433,12 +435,22 @@ public class ContractService {
     }
   }
 
-  public List<Transaction> getTransactions(String userId, Pageable pageable) {
+  public MappingJacksonValue getTransactions(String userId, String fields, Pageable pageable) {
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(userId, "ETH");
     }
-    return transactionRepository.findByAddress(accountOptional.get().getAddress(), pageable);
+    List<Transaction> txs = transactionRepository.findByAddress(accountOptional.get().getAddress(), pageable);
+
+    MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(txs);
+    SimpleFilterProvider filters = new SimpleFilterProvider().setFailOnUnknownId(false);
+    // return all fields when not specified
+    if (fields != null) {
+      String[] includedFields = fields.split(",");
+      filters.addFilter("txFilter", SimpleBeanPropertyFilter.filterOutAllExcept(includedFields));
+    }
+    mappingJacksonValue.setFilters(filters);
+    return mappingJacksonValue;
   }
 
   public Transaction getTransaction(Long id) {

@@ -19,6 +19,7 @@ import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -190,6 +191,8 @@ public class Controller {
     }
 
     @ApiOperation("Returns a list of token transactions for a given user")
+    @ApiImplicitParam(name = "fields",
+        value = "comma separated list of interested fields, e.g., “txid,from,to”; return all fields if absent")
     @ApiImplicitParams({
         @ApiImplicitParam(name = "page", dataType = "integer", paramType = "query",
             value = "Results page you want to retrieve (0..N)"),
@@ -201,10 +204,11 @@ public class Controller {
                 "Multiple sort criteria are supported.")
     })
     @RequestMapping(value = "/0.1/eth/users/{userId}/transactions", method = RequestMethod.GET)
-    List<Transaction> getTransactions(
+    MappingJacksonValue getTransactions(
         @PathVariable String userId,
+        @RequestParam(required = false) String fields,
         Pageable pageable) throws Exception {
-        return ContractService.getTransactions(userId, pageable);
+        return ContractService.getTransactions(userId, fields, pageable);
     }
 
     @ApiOperation(value = "Get details of a transaction", notes = "id is integer, not txid")

@@ -1,5 +1,6 @@
 package fm.castbox.wallet.domain;
 
+import com.fasterxml.jackson.annotation.JsonFilter;
 import java.sql.Timestamp;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -35,6 +36,7 @@ abstract class BaseGeneratedId {
 @AllArgsConstructor
 // Generating equals/hashCode implementation but without a call to superclass
 @EqualsAndHashCode(callSuper=false)
+@JsonFilter("txFilter")
 public class Transaction extends BaseGeneratedId {
   // TODO: only applies to on-chain tx
   private String txId;
