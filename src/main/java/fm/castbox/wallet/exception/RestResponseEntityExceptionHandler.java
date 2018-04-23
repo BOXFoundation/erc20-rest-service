@@ -25,7 +25,7 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
     // logger.error("400 Status Code", ex);
     BindingResult result = ex.getBindingResult();
     GeneralResponse bodyOfResponse = new GeneralResponse(result.getAllErrors(),
-        "Invalid " + result.getObjectName());
+        "Invalid " + result.getObjectName(), HttpStatus.BAD_REQUEST.value());
     return handleExceptionInternal(ex, bodyOfResponse, new HttpHeaders(), HttpStatus.BAD_REQUEST,
         request);
   }
@@ -37,7 +37,7 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
     // logger.error("400 Status Code", ex);
     BindingResult result = ex.getBindingResult();
     GeneralResponse bodyOfResponse = new GeneralResponse(result.getAllErrors(),
-        "Invalid " + result.getObjectName());
+        "Invalid " + result.getObjectName(), HttpStatus.BAD_REQUEST.value());
     return handleExceptionInternal(ex, bodyOfResponse, new HttpHeaders(), HttpStatus.BAD_REQUEST,
         request);
   }
@@ -45,17 +45,32 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
   @ExceptionHandler({UserIdAlreadyExistException.class})
   public ResponseEntity<Object> handleUserIdAlreadyExistException(UserIdAlreadyExistException ex,
       WebRequest request) {
-    return handleExceptionInternal(ex, new GeneralResponse(ex.getMessage(),
-            "UserIdAlreadyExistException"), new HttpHeaders(),
+    return handleExceptionInternal(ex, new GeneralResponse(HttpStatus.BAD_REQUEST.value(),
+                    ex.getMessage(), "UserIdAlreadyExistException"), new HttpHeaders(),
         HttpStatus.BAD_REQUEST, request);
   }
 
   @ExceptionHandler({UserNotExistException.class})
   public ResponseEntity<Object> handleUserNotExistException(UserNotExistException ex,
       WebRequest request) {
-    return handleExceptionInternal(ex, new GeneralResponse(ex.getMessage(),
-            "UserNotExistException"), new HttpHeaders(),
+    return handleExceptionInternal(ex, new GeneralResponse(HttpStatus.BAD_REQUEST.value(),
+                    ex.getMessage(), "UserNotExistException"), new HttpHeaders(),
         HttpStatus.BAD_REQUEST, request);
   }
 
+  @ExceptionHandler({InvalidParamException.class})
+  public ResponseEntity<Object> handleInvalidParamException(InvalidParamException ex,
+                                                            WebRequest request) {
+    return handleExceptionInternal(ex, new GeneralResponse(HttpStatus.BAD_REQUEST.value(),
+                    ex.getMessage(), "InvalidParamException"), new HttpHeaders(),
+            HttpStatus.BAD_REQUEST, request);
+  }
+
+  @ExceptionHandler({NonRepeatableException.class})
+  public ResponseEntity<Object> handleNonRepeatableException(NonRepeatableException ex,
+                                                            WebRequest request) {
+    return handleExceptionInternal(ex, new GeneralResponse(HttpStatus.ACCEPTED.value(),
+                    ex.getMessage(), "NonRepeatableException"), new HttpHeaders(),
+            HttpStatus.ACCEPTED, request);
+  }
 }
