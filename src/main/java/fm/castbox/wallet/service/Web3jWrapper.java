@@ -1,15 +1,29 @@
 package fm.castbox.wallet.service;
 
+import java.math.BigInteger;
+
 import lombok.experimental.Delegate;
 import org.springframework.context.annotation.Scope;
-import org.web3j.protocol.core.methods.request.Transaction;
-import fm.castbox.wallet.properties.NodeProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.web3j.crypto.RawTransaction;
 import org.web3j.protocol.Web3j;
+import org.web3j.crypto.Credentials;
+import org.web3j.crypto.ECKeyPair;
+import org.web3j.crypto.Sign;
+import org.web3j.crypto.TransactionEncoder;
+import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.EthEstimateGas;
+import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
+import org.web3j.protocol.core.methods.response.EthSendTransaction;
+import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.protocol.http.HttpService;
-import java.math.BigInteger;
+import org.web3j.utils.Numeric;
+
+import static org.web3j.tx.Contract.GAS_LIMIT;
+import static org.web3j.tx.ManagedTransaction.GAS_PRICE;
+
+import fm.castbox.wallet.properties.NodeProperties;
 
 /**
  * Web3jService Wrapper.
@@ -35,4 +49,26 @@ public class Web3jWrapper {
               .sendAsync().get();
       return ethEstimateGas.getAmountUsed();
   }
+
+  public String dispatchETHTransaction(
+          String fromAddress, String privateKey, String publicKey, 
+          String toAddress, BigInteger amount) throws Exception {
+    EthGetTransactionCount ethGetTransactionCount = web3j.ethGetTransactionCount(
+                fromAddress, DefaultBlockParameterName.LATEST).sendAsync().get();
+    BigInteger nonce = ethGetTransactionCount.getTransactionCount();
+
+    RawTransaction rawTx = RawTransaction.createEtherTransaction(
+                nonce, GAS_PRICE, GAS_LIMIT, toAddress, amount);
+    Credentials credentials = Credentials.create(privateKey, publicKey);
+
+    byte[] signedMessage = TransactionEncoder.signMessage(rawTx, credentials);
+    String hexValue = Numeric.toHexString(signedMessage);
+
+    EthSendTransaction ethSendTransaction =
+                web3j.ethSendRawTransaction(hexValue).sendAsync().get();
+    
+    String txHash = ethSendTransaction.getTransactionHash();
+    return txHash;
+  }
+  
 }
