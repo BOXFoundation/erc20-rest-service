@@ -54,7 +54,7 @@ public class EthController {
 
   @ApiOperation("Estimate fee cost for a transfer intent")
   @PostMapping("/0.1/eth/estimate-transfer-fee")
-  public EstFeeRDto estimateTransferFee(@Valid @RequestBody EstFeeQDto estFeeQDto){
+  public EstFeeRDto estimateTransferFee(@Valid @RequestBody EstFeeQDto estFeeQDto) throws Exception{
     return ethService.estimateTransferFee(estFeeQDto);
   }
 

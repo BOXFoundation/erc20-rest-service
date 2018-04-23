@@ -3,27 +3,21 @@ package fm.castbox.wallet.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
-import lombok.experimental.Accessors;
-import org.springframework.context.support.DefaultMessageSourceResolvable;
-import org.springframework.validation.ObjectError;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class EstFeeRDto {
-  private final int retCode;
-  private final String retMsg;
+  private final int status;
+  private final String message;
 
   private String feeEst;
   private String ethFeeEst;
   private Long timestamp;
 
-  public EstFeeRDto(int retCode, String retMsg){
-    this.retCode = retCode;
-    this.retMsg = retMsg;
+  public EstFeeRDto(int status, String message){
+    this.status = status;
+    this.message = message;
   }
 }
 

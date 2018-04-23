@@ -6,6 +6,7 @@ import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.dto.BalanceDto;
 import fm.castbox.wallet.dto.EstFeeQDto;
 import fm.castbox.wallet.dto.EstFeeRDto;
+import fm.castbox.wallet.exception.InvalidParamException;
 import fm.castbox.wallet.exception.UserIdAlreadyExistException;
 import fm.castbox.wallet.exception.UserNotExistException;
 import fm.castbox.wallet.repository.AddressHistoryRepository;
@@ -110,41 +111,35 @@ public class EthServiceImpl implements EthService {
   }
 
   @Override
-  public EstFeeRDto estimateTransferFee(EstFeeQDto estFeeQDto){
-    try {
-      String symbol = estFeeQDto.getSymbol().trim().toUpperCase();
-      BigDecimal bdAmount = new BigDecimal(estFeeQDto.getAmount());
+  public EstFeeRDto estimateTransferFee(EstFeeQDto estFeeQDto) throws Exception {
+    String symbol = estFeeQDto.getSymbol().trim().toUpperCase();
+    if (!"BOX".equals(symbol) && !"ETH".equals(symbol)) {
+      throw new InvalidParamException("symbol", "unsupported token: " + symbol);
+    }
 
-      if (!"BOX".equals(symbol) && !"ETH".equals(symbol)) {
-        return new EstFeeRDto(1, "Not Support Token " + symbol);
-      }
+    BigInteger gasEst = web3jService.estimateTransferGas();
+    BigInteger gasPrice = web3jService.ethGasPrice().send().getGasPrice();
+    BigInteger gweiFeeEst = gasPrice.multiply(gasEst);
+    BigDecimal ethFeeEst = Convert.fromWei(new BigDecimal(gweiFeeEst), Convert.Unit.ETHER);
+    BigDecimal symbolFeeEst = BigDecimal.valueOf(0);
+    Long timestamp = System.currentTimeMillis();
 
-      BigInteger gasEst = web3jService.estimateTransferGas();
-      BigInteger gasPrice = web3jService.ethGasPrice().send().getGasPrice();
-      BigInteger gweiFeeEst = gasPrice.multiply(gasEst);
-      BigDecimal ethFeeEst = Convert.fromWei(new BigDecimal(gweiFeeEst), Convert.Unit.ETHER);
-      BigDecimal symbolFeeEst = BigDecimal.valueOf(0);
-      Long timestamp = System.currentTimeMillis();
+    if ("ETH".equals(symbol)) {
+      symbolFeeEst = ethFeeEst;
+    }
 
-      if ("ETH".equals(symbol)) {
-        symbolFeeEst = ethFeeEst;
-      }
+    if ("BOX".equals(symbol)) {
+      // TODO: query market value of BOX
+      symbolFeeEst = ethFeeEst.multiply(TransferConsts.FIXED_ETH_BOX_RATE);
+    }
 
-      if ("BOX".equals(symbol)) {
-        // TODO: query market value of BOX
-        symbolFeeEst = ethFeeEst.multiply(TransferConsts.FIXED_ETH_BOX_RATE);
-      }
-
-      if (bdAmount.compareTo(symbolFeeEst) > 0){
-        return new EstFeeRDto(0, "OK",
-                symbolFeeEst.toString(), ethFeeEst.toString(), timestamp);
-      } else {
-        return new EstFeeRDto(2, "Transfer Fee May Be Insufficient",
-                symbolFeeEst.toString(), ethFeeEst.toString(), timestamp);
-      }
-    } catch (Exception e){
-      log.error(e.getMessage(), e);
-      return new EstFeeRDto(-1, "Server Internal Error!");
+    BigDecimal bdAmount = new BigDecimal(estFeeQDto.getAmount());
+    if (bdAmount.compareTo(symbolFeeEst) > 0){
+      return new EstFeeRDto(0, "OK",
+              symbolFeeEst.toString(), ethFeeEst.toString(), timestamp);
+    } else {
+      return new EstFeeRDto(1, "Transfer Fee May Be Insufficient",
+              symbolFeeEst.toString(), ethFeeEst.toString(), timestamp);
     }
   }
 
