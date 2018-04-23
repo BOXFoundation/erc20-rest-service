@@ -463,8 +463,12 @@ public class ContractService {
     return mappingJacksonValue;
   }
 
-  public Transaction getTransaction(Long id) {
-    return transactionRepository.findById(id).get();
+  public MappingJacksonValue getTransaction(Long id) {
+    Transaction tx = transactionRepository.findById(id).get();
+    MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(tx);
+    SimpleFilterProvider filters = new SimpleFilterProvider().setFailOnUnknownId(false);
+    mappingJacksonValue.setFilters(filters);
+    return mappingJacksonValue;
   }
 
   private HumanStandardToken load(String contractAddress, List<String> privateFor) {

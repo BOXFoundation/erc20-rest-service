@@ -213,7 +213,7 @@ public class Controller {
 
     @ApiOperation(value = "Get details of a transaction", notes = "id is integer, not txid")
     @RequestMapping(value = "/0.1/eth/transaction/{id}", method = RequestMethod.GET)
-    Transaction getTransaction(@PathVariable Long id) throws Exception {
+    MappingJacksonValue getTransaction(@PathVariable Long id) throws Exception {
         return ContractService.getTransaction(id);
     }
 
