@@ -267,7 +267,8 @@ public class Controller {
         private final String tokenSymbol;
         private final String toUserId;
         private final String toAddress;
-        private final BigInteger amount;
+        // denoted in basic unit such as Ether & BOX
+        private final String amount;
         // signature
         private final String sign;
         // to prevent replay attack

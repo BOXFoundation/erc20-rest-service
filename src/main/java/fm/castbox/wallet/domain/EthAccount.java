@@ -1,11 +1,11 @@
 package fm.castbox.wallet.domain;
 
+import java.math.BigInteger;
 import java.sql.Timestamp;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -37,11 +37,13 @@ public class EthAccount {
   @Column(nullable = false, columnDefinition = "CHAR(64)")
   private String privateKey;
 
-  @Min(value = 0L, message = "Balance cannot be negative")
-  private long ethBalance;
+  // String to accommodate BigInteger
+  @NotBlank
+  private String ethBalance;
 
-  @Min(value = 0L, message = "Balance cannot be negative")
-  private long boxBalance;
+  // String to accommodate BigInteger
+  @NotBlank
+  private String boxBalance;
 
   @NotNull
   @Column(nullable = false)
@@ -50,4 +52,20 @@ public class EthAccount {
   @NotNull
   @Column(nullable = false)
   private Timestamp updatedAt;
+
+  public BigInteger getEthBalance() {
+    return new BigInteger(ethBalance);
+  }
+
+  public BigInteger getBoxBalance() {
+    return new BigInteger(boxBalance);
+  }
+
+  public void setEthBalance(BigInteger ethBalance) {
+    this.ethBalance = ethBalance.toString();
+  }
+
+  public void setBoxBalance(BigInteger boxBalance) {
+    this.boxBalance = boxBalance.toString();
+  }
 }

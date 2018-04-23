@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.dto.BalanceDto;
 import fm.castbox.wallet.exception.UserNotExistException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -45,6 +46,8 @@ import org.web3j.protocol.http.HttpService;
 import org.web3j.quorum.Quorum;
 import org.web3j.quorum.tx.ClientTransactionManager;
 import org.web3j.tx.TransactionManager;
+import org.web3j.utils.Convert;
+import org.web3j.utils.Convert.Unit;
 import rx.Subscription;
 
 import static org.web3j.tx.Contract.GAS_LIMIT;
@@ -113,13 +116,12 @@ public class ContractService {
     }
 
     EthAccount toEthAccount = accountOptional.get();
-    long transferValue = amount.longValueExact();
     switch (tokenSymbol) {
       case "BOX":
-        toEthAccount.setBoxBalance(toEthAccount.getBoxBalance() + transferValue);
+        toEthAccount.setBoxBalance(toEthAccount.getBoxBalance().add(amount));
         break;
       case "ETH":
-        toEthAccount.setEthBalance(toEthAccount.getEthBalance() + transferValue);
+        toEthAccount.setEthBalance(toEthAccount.getEthBalance().add(amount));
         break;
       default:
         System.out.println("Unsupported token: " + tokenSymbol);
@@ -128,9 +130,16 @@ public class ContractService {
     ethAccountRepository.save(toEthAccount);
     // Only append tx not saved before. Otherwise previous send tx will be overwritten with main account as from address
     if (!transactionRepository.existsByTxId(txId)) {
+      String amountStr;
+      try {
+        amountStr = min2BasicUnit(tokenSymbol, amount).toString();
+      } catch (Exception e) {
+        System.out.println(e.toString());
+        return;
+      }
       Timestamp now = new Timestamp(System.currentTimeMillis());
       transactionRepository.save(new Transaction(txId, tokenSymbol, "" /* fromUserId */, from,
-          "" /* toUserId */, to, amount.longValueExact(), now));
+          "" /* toUserId */, to, amountStr, now));
     }
   }
 
@@ -244,19 +253,19 @@ public class ContractService {
         .getAccountId();
     // initial balance 0
     Timestamp now = new Timestamp(System.currentTimeMillis());
-    ethAccountRepository.save(new EthAccount(userId, address, DUMMY_PRIVATE_KEY, 0, 0, now, now));
+    ethAccountRepository.save(new EthAccount(userId, address, DUMMY_PRIVATE_KEY, "0", "0", now, now));
     return address;
   }
 
-  public List<BalanceDto> getUserBalances(String userId) {
+  public List<BalanceDto> getUserBalances(String userId) throws Exception {
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(userId, "BOX");
     }
     EthAccount account = accountOptional.get();
     // TODO: fill in dollar amount
-    return Arrays.asList(new BalanceDto("ETH", account.getEthBalance(), 0),
-        new BalanceDto("BOX", account.getBoxBalance(), 0));
+    return Arrays.asList(new BalanceDto("ETH", min2BasicUnit("ETH", account.getEthBalance()).toString(), "0"),
+        new BalanceDto("BOX", min2BasicUnit("BOX", account.getBoxBalance()).toString(), "0"));
   }
 
   public String name(String contractAddress) throws Exception {
@@ -293,10 +302,12 @@ public class ContractService {
   public TransactionResponse<TransferEventResponse> transferFromUser(
       List<String> privateFor, String tokenSymbol, String fromUserId, String toUserId,
       String toAddress,
-      BigInteger value) throws Exception {
+      String amount) throws Exception {
     if (!tokenSymbol.equals("ETH") && !tokenSymbol.equals("BOX")) {
       throw new RuntimeException("Unsupported token: " + tokenSymbol);
     }
+
+    BigInteger value = basic2MinUnit(tokenSymbol, amount);
 
     if (toUserId.isEmpty() && toAddress.isEmpty()) {
       throw new RuntimeException("toUserId and toAddress cannot be both missing");
@@ -319,10 +330,9 @@ public class ContractService {
     }
 
     EthAccount fromEthAccount = accountOptional.get();
-    long transferValue = value.longValueExact();
 
-    long balance = tokenSymbol.equals("ETH") ? fromEthAccount.getEthBalance() : fromEthAccount.getBoxBalance();
-    if (balance < transferValue) {
+    BigInteger balance = tokenSymbol.equals("ETH") ? fromEthAccount.getEthBalance() : fromEthAccount.getBoxBalance();
+    if (balance.compareTo(value) < 0) {
       throw new RuntimeException("Insufficient fund");
     }
 
@@ -330,17 +340,17 @@ public class ContractService {
     TransactionResponse<TransferEventResponse> txResponse;
     if (tokenSymbol.equals("ETH")) {
       txResponse = transferEth(toAddress, value);
-      fromEthAccount.setEthBalance(balance - transferValue);
+      fromEthAccount.setEthBalance(balance.subtract(value));
     } else {
       txResponse = transfer(privateFor, tokenSymbol2ContractAddr(tokenSymbol), toAddress, value);
-      fromEthAccount.setBoxBalance(balance - transferValue);
+      fromEthAccount.setBoxBalance(balance.subtract(value));
     }
     ethAccountRepository.save(fromEthAccount);
     Timestamp now = new Timestamp(System.currentTimeMillis());
     transactionRepository.save(
         new Transaction(txResponse.getTransactionHash(), tokenSymbol, "" /* fromUserId */,
             fromEthAccount.getAddress(), "" /* toUserId */, toAddress,
-            transferValue, now));
+            min2BasicUnit(tokenSymbol, value).toString(), now));
     return txResponse;
   }
 
@@ -529,7 +539,37 @@ public class ContractService {
       throw new RuntimeException("Unknown contract for token " + tokenSymbol);
     }
     return contractInstance.getAddress();
-}
+  }
+
+  // convert from basic unit to its minimal unit, e.g., eth -> wei
+  private BigInteger basic2MinUnit(String tokenSymbol, String amount) throws Exception {
+    if (tokenSymbol.equals("ETH")) {
+      return Convert.toWei(amount, Unit.ETHER).toBigIntegerExact();
+    }
+
+    ContractInstance contractInstance = tokenSymbolContracts.get(tokenSymbol);
+    if (contractInstance == null) {
+      throw new RuntimeException("Unknown contract for token " + tokenSymbol);
+    }
+    int decimalUnits = contractInstance.getDecimalUnits().intValueExact();
+    BigDecimal bdAmount = new BigDecimal(amount);
+    return bdAmount.multiply(BigDecimal.TEN.pow(decimalUnits)).toBigIntegerExact();
+  }
+
+  // convert from minimal unit to its basic unit, e.g., wei -> eth
+  private BigDecimal min2BasicUnit(String tokenSymbol, BigInteger amount) throws Exception {
+    BigDecimal bdAmount = new BigDecimal(amount);
+    if (tokenSymbol.equals("ETH")) {
+      return Convert.fromWei(bdAmount, Unit.ETHER);
+    }
+
+    ContractInstance contractInstance = tokenSymbolContracts.get(tokenSymbol);
+    if (contractInstance == null) {
+      throw new RuntimeException("Unknown contract for token " + tokenSymbol);
+    }
+    int decimalUnits = contractInstance.getDecimalUnits().intValueExact();
+    return bdAmount.divide(BigDecimal.TEN.pow(decimalUnits));
+  }
 
   @Getter
   @Setter

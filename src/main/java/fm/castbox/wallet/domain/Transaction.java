@@ -10,7 +10,7 @@ import javax.persistence.Id;
 import javax.persistence.Inheritance;
 import javax.persistence.InheritanceType;
 import javax.persistence.Table;
-import javax.validation.constraints.Min;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -52,8 +52,8 @@ public class Transaction extends BaseGeneratedId {
   private String toUserId;
   private String toAddress;
 
-  @Min(value = 0L, message = "Amount cannot be negative")
-  private long amount;
+  @NotBlank
+  private String amount;
 
   @NotNull
   @Column(nullable = false)

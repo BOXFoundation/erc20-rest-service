@@ -61,7 +61,7 @@ public class EthServiceImpl implements EthService {
       String address = ADDRESS_PREFIX + Keys.getAddress(ecKeyPair);
       String privateKey = ecKeyPair.getPrivateKey().toString(16);
       Timestamp now = new Timestamp(System.currentTimeMillis());
-      EthAccount ethAccount = new EthAccount(userId, address, privateKey, 0, 0, now, now);
+      EthAccount ethAccount = new EthAccount(userId, address, privateKey, "0", "0", now, now);
       this.save(ethAccount);
       return Optional.of(address);
     } catch (InvalidAlgorithmParameterException | NoSuchAlgorithmException | NoSuchProviderException e) {
@@ -104,9 +104,9 @@ public class EthServiceImpl implements EthService {
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(userId, "ETH");
     }
-    double balance = accountOptional.get().getBoxBalance();
+    BigInteger balance = accountOptional.get().getBoxBalance();
     // TODO: fill in dollar amount
-    return new BalanceDto("ETH", balance, 0);
+    return new BalanceDto("ETH", balance.toString(), "0");
   }
 
   @Override
