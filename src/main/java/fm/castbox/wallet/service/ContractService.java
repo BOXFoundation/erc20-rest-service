@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.dto.BalanceDto;
+import fm.castbox.wallet.dto.TransferQDto;
+import fm.castbox.wallet.exception.InvalidParamException;
+import fm.castbox.wallet.exception.NonRepeatableException;
 import fm.castbox.wallet.exception.UserNotExistException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -24,9 +27,11 @@ import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.properties.WalletProperties;
 import fm.castbox.wallet.repository.EthAccountRepository;
 import fm.castbox.wallet.repository.TransactionRepository;
+import fm.castbox.wallet.util.APISignUtils;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.data.domain.Pageable;
@@ -39,6 +44,7 @@ import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
 
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.Response;
 import org.web3j.protocol.core.methods.response.EthGetCode;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -57,6 +63,7 @@ import static org.web3j.tx.ManagedTransaction.GAS_PRICE;
  * Our smart contract service.
  */
 @Service
+@Slf4j
 public class ContractService {
 
   // TODO: full node does not return private key, may fill in later
@@ -139,7 +146,7 @@ public class ContractService {
       }
       Timestamp now = new Timestamp(System.currentTimeMillis());
       transactionRepository.save(new Transaction(txId, tokenSymbol, "" /* fromUserId */, from,
-          "" /* toUserId */, to, amountStr, now));
+          "" /* toUserId */, to, amountStr, now, ""));
     }
   }
 
@@ -300,28 +307,34 @@ public class ContractService {
   }
 
   public TransactionResponse<TransferEventResponse> transferFromUser(
-      List<String> privateFor, String tokenSymbol, String fromUserId, String toUserId,
-      String toAddress,
-      String amount) throws Exception {
-    if (!tokenSymbol.equals("ETH") && !tokenSymbol.equals("BOX")) {
-      throw new RuntimeException("Unsupported token: " + tokenSymbol);
+          List<String> privateFor, String fromUserId, TransferQDto transferQDto) throws Exception {
+    if (!transferQDto.getTokenSymbol().equals("ETH") && !transferQDto.getTokenSymbol().equals("BOX")) {
+      throw new InvalidParamException("tokenSymbol", "unsupported token: " + transferQDto.getTokenSymbol());
+    }
+    if (!Optional.ofNullable(transferQDto.getToUserId()).isPresent()
+            && !Optional.ofNullable(transferQDto.getToAddress()).isPresent()) {
+      throw new InvalidParamException("toUserId & toAddress", "cannot be both missing");
+    }
+    if (Optional.ofNullable(transferQDto.getToUserId()).isPresent()
+            && Optional.ofNullable(transferQDto.getToAddress()).isPresent()) {
+      throw new InvalidParamException("toUserId & toAddress", "cannot be both present");
     }
 
-    BigInteger value = basic2MinUnit(tokenSymbol, amount);
+    // validate sign
+    String toSignStr = APISignUtils.prepareStrToSign(transferQDto, "sign");
+    boolean isSignValid = APISignUtils.verifySign(toSignStr, transferQDto.getSign());
+    if (!isSignValid) {
+      log.info("toSignStr is " + toSignStr);
+//      throw new InvalidParamException("sign", "srcStr is " + toSignStr);
+    }
 
-    if (toUserId.isEmpty() && toAddress.isEmpty()) {
-      throw new RuntimeException("toUserId and toAddress cannot be both missing");
-    }
-    if (!toUserId.isEmpty() && !toAddress.isEmpty()) {
-      throw new RuntimeException("toUserId and toAddress cannot be both present");
-    }
     // look up toAddress from toUserId
-    if (!toUserId.isEmpty()) {
-      Optional<EthAccount> toAddressOptional = ethAccountRepository.findByUserId(toUserId);
+    if (!transferQDto.getToUserId().isEmpty()) {
+      Optional<EthAccount> toAddressOptional = ethAccountRepository.findByUserId(transferQDto.getToUserId());
       if (!toAddressOptional.isPresent()) {
-        throw new UserNotExistException(toUserId, "ETH");
+        throw new UserNotExistException(transferQDto.getToUserId(), "ETH");
       }
-      toAddress = toAddressOptional.get().getAddress();
+      transferQDto.setToAddress(toAddressOptional.get().getAddress());
     }
 
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(fromUserId);
@@ -330,27 +343,27 @@ public class ContractService {
     }
 
     EthAccount fromEthAccount = accountOptional.get();
-
-    BigInteger balance = tokenSymbol.equals("ETH") ? fromEthAccount.getEthBalance() : fromEthAccount.getBoxBalance();
+    BigInteger value = basic2MinUnit(transferQDto.getTokenSymbol(), transferQDto.getAmount());
+    BigInteger balance = transferQDto.getTokenSymbol().equals("ETH") ? fromEthAccount.getEthBalance() : fromEthAccount.getBoxBalance();
     if (balance.compareTo(value) < 0) {
-      throw new RuntimeException("Insufficient fund");
+      throw new InvalidParamException("amount", "Insufficient fund");
     }
 
     // transfer from main account, not fromEthAccount
     TransactionResponse<TransferEventResponse> txResponse;
-    if (tokenSymbol.equals("ETH")) {
-      txResponse = transferEth(toAddress, value);
+    if (transferQDto.getTokenSymbol().equals("ETH")) {
+      txResponse = transferEth(transferQDto.getToAddress(), value);
       fromEthAccount.setEthBalance(balance.subtract(value));
     } else {
-      txResponse = transfer(privateFor, tokenSymbol2ContractAddr(tokenSymbol), toAddress, value);
+      txResponse = transfer(privateFor, tokenSymbol2ContractAddr(transferQDto.getTokenSymbol()), transferQDto.getToAddress(), value);
       fromEthAccount.setBoxBalance(balance.subtract(value));
     }
     ethAccountRepository.save(fromEthAccount);
     Timestamp now = new Timestamp(System.currentTimeMillis());
     transactionRepository.save(
-        new Transaction(txResponse.getTransactionHash(), tokenSymbol, "" /* fromUserId */,
-            fromEthAccount.getAddress(), "" /* toUserId */, toAddress,
-            min2BasicUnit(tokenSymbol, value).toString(), now));
+        new Transaction(txResponse.getTxId(), transferQDto.getTokenSymbol(), "" /* fromUserId */,
+            fromEthAccount.getAddress(), "" /* toUserId */, transferQDto.getToAddress(),
+            min2BasicUnit(transferQDto.getTokenSymbol(), value).toString(), now, transferQDto.getNote()));
     return txResponse;
   }
 
@@ -414,6 +427,14 @@ public class ContractService {
             nodeProperties.getFromAddress(), nonce, GAS_PRICE, GAS_LIMIT, to, value);
 
     EthSendTransaction ethSendTransaction = web3j.ethSendTransaction(transaction).send();
+    Response.Error ethError = ethSendTransaction.getError();
+    if ( Optional.ofNullable(ethError).isPresent() ) {
+      if (ethError.getCode() == -32000) { // known transaction error
+        throw new NonRepeatableException("transfer", ethError.getMessage());
+      } else {
+        throw new RuntimeException("Web3j Error " + ethError.getCode() + ", " + ethError.getMessage());
+      }
+    }
     return new TransactionResponse<>(ethSendTransaction.getTransactionHash());
   }
 

@@ -10,12 +10,14 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import fm.castbox.wallet.properties.APIProperties;
 import fm.castbox.wallet.util.algorithm.ECDSAAlgorithm;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.beanutils.PropertyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 @Component
+@Slf4j
 public class APISignUtils {
 
   private static APIProperties apiProperties;
@@ -70,9 +72,14 @@ public class APISignUtils {
     return strReadyToSign;
   }
 
-  public static boolean verifySign(String unsignedString, String sign) throws Exception {
-    String keyFromConfig = Optional.ofNullable(apiProperties).orElse(new APIProperties()).getAllowedPubkey();
-    return verifySign(keyFromConfig, unsignedString, sign);
+  public static boolean verifySign(String unsignedString, String sign){
+    try {
+      String keyFromConfig = Optional.ofNullable(apiProperties).orElse(new APIProperties()).getAllowedPubkey();
+      return verifySign(keyFromConfig, unsignedString, sign);
+    } catch (Exception e) {
+      log.info("Verify Sign Fail: ", e);
+      return false;
+    }
   }
 
   public static boolean verifySign(String pubKey, String unsignedString, String sign) throws Exception {

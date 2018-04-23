@@ -186,7 +186,7 @@ public class WalletServerApplicationTests {
         verifyHttpStatus(responseEntity);
         TransactionResponse body = responseEntity.getBody();
         assertNotNull(body);
-        String transactionHash = body.getTransactionHash();
+        String transactionHash = body.getTxId();
         assertTrue(transactionHash.startsWith("0x"));
         assertThat(transactionHash.length(), is(66));
     }

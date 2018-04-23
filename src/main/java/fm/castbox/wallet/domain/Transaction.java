@@ -53,9 +53,13 @@ public class Transaction extends BaseGeneratedId {
   private String toAddress;
 
   @NotBlank
+  @Column(nullable = false)
   private String amount;
 
   @NotNull
   @Column(nullable = false)
   private Timestamp transactedAt;
+
+  @Length(max = 255)
+  private String note;
 }

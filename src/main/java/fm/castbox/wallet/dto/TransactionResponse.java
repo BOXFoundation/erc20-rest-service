@@ -1,5 +1,8 @@
 package fm.castbox.wallet.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,19 +11,23 @@ import lombok.Setter;
  */
 @Getter
 @Setter
+@AllArgsConstructor
+//@JsonInclude(JsonInclude.Include.NON_NULL)
 public class TransactionResponse<T> {
 
-    private String transactionHash;
+    private final int status;
+    private final String message;
+    private String txId;
     private T event;
 
-    TransactionResponse() { }
-
-    public TransactionResponse(String transactionHash) {
-        this(transactionHash, null);
+    public TransactionResponse(String txId) {
+      this(txId, null);
     }
 
-    public TransactionResponse(String transactionHash, T event) {
-        this.transactionHash = transactionHash;
-        this.event = event;
+    public TransactionResponse(String txId, T event) {
+      this.status = 0;
+      this.message = "OK";
+      this.txId = txId;
+      this.event = event;
     }
 }

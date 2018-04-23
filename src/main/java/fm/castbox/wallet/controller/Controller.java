@@ -1,12 +1,14 @@
 package fm.castbox.wallet.controller;
 
 import fm.castbox.wallet.dto.BalanceDto;
+import fm.castbox.wallet.dto.TransferQDto;
 import io.swagger.annotations.ApiImplicitParams;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
 
 import fm.castbox.wallet.properties.NodeProperties;
 import fm.castbox.wallet.domain.Transaction;
@@ -121,14 +123,8 @@ public class Controller {
     TransactionResponse<ContractService.TransferEventResponse> transferFromUser(
             HttpServletRequest request,
             @PathVariable String userId,
-            @RequestBody TransferRequest transferRequest) throws Exception {
-        return ContractService.transferFromUser(
-                extractPrivateFor(request),
-                transferRequest.getTokenSymbol(),
-                userId,
-                transferRequest.getToUserId(),
-                transferRequest.getToAddress(),
-                transferRequest.getAmount());
+            @Valid @RequestBody TransferQDto transferQDto) throws Exception {
+        return ContractService.transferFromUser(extractPrivateFor(request), userId, transferQDto);
     }
 
     @ApiOperation("Get decimal precision of tokens")
@@ -260,19 +256,6 @@ public class Controller {
     static class ApproveRequest {
         private final String spender;
         private final BigInteger value;
-    }
-
-    @Data
-    static class TransferRequest {
-        private final String tokenSymbol;
-        private final String toUserId;
-        private final String toAddress;
-        // denoted in basic unit such as Ether & BOX
-        private final String amount;
-        // signature
-        private final String sign;
-        // to prevent replay attack
-        private final long timestamp;
     }
 
     @Data
