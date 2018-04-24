@@ -361,8 +361,8 @@ public class ContractService {
     ethAccountRepository.save(fromEthAccount);
     Timestamp now = new Timestamp(System.currentTimeMillis());
     transactionRepository.save(
-        new Transaction(txResponse.getTxId(), transferQDto.getTokenSymbol(), "" /* fromUserId */,
-            fromEthAccount.getAddress(), "" /* toUserId */, transferQDto.getToAddress(),
+        new Transaction(txResponse.getTxId(), transferQDto.getTokenSymbol(), fromUserId,
+            fromEthAccount.getAddress(), transferQDto.getToUserId(), transferQDto.getToAddress(),
             min2BasicUnit(transferQDto.getTokenSymbol(), value).toString(), now, transferQDto.getNote()));
     return txResponse;
   }
