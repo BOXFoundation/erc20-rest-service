@@ -12,12 +12,13 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-//@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class TransactionResponse<T> {
 
     private final int status;
     private final String message;
     private String txId;
+    private String state;
     private T event;
 
     public TransactionResponse(String txId) {

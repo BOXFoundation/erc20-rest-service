@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.dto.BalanceDto;
 import fm.castbox.wallet.dto.TransferQDto;
+import fm.castbox.wallet.enumeration.ResponseStatusEnum;
+import fm.castbox.wallet.enumeration.TransactionEnum;
 import fm.castbox.wallet.exception.InvalidParamException;
 import fm.castbox.wallet.exception.NonRepeatableException;
 import fm.castbox.wallet.exception.UserNotExistException;
@@ -38,6 +40,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.stereotype.Service;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.admin.Admin;
 import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
@@ -146,7 +149,7 @@ public class ContractService {
       }
       Timestamp now = new Timestamp(System.currentTimeMillis());
       transactionRepository.save(new Transaction(txId, tokenSymbol, "" /* fromUserId */, from,
-          "" /* toUserId */, to, amountStr, now, ""));
+          "" /* toUserId */, to, amountStr, now, "", TransactionEnum.EXTERNAL_TYPE, TransactionEnum.DONE_STATE));
     }
   }
 
@@ -306,6 +309,43 @@ public class ContractService {
     }
   }
 
+  @Transactional
+  public TransactionResponse internalTransfer(EthAccount fromAccount, EthAccount toAccount,
+                                                String symbol, BigInteger value, String note) throws Exception {
+    if (value.compareTo(BigInteger.ZERO) <= 0) {
+      throw new InvalidParamException("value", "cannot be negative");
+    }
+
+    BigInteger oriFromBalance, oriToBalance;
+    if ("BOX".equals(symbol)) {
+      oriFromBalance = fromAccount.getBoxBalance();
+      oriToBalance = toAccount.getBoxBalance();
+      fromAccount.setBoxBalance(oriFromBalance.subtract(value));
+      toAccount.setBoxBalance(oriToBalance.add(value));
+    }
+    if ("ETH".equals(symbol)) {
+      oriFromBalance = fromAccount.getEthBalance();
+      oriToBalance = toAccount.getEthBalance();
+      fromAccount.setEthBalance(oriFromBalance.subtract(value));
+      toAccount.setEthBalance(oriToBalance.add(value));
+    }
+
+    Timestamp now = new Timestamp(System.currentTimeMillis());
+    Transaction tx = new Transaction(null, symbol, fromAccount.getUserId(),
+            fromAccount.getAddress(), toAccount.getUserId(), toAccount.getAddress(),
+            min2BasicUnit(symbol, value).toString(), now, note,
+            TransactionEnum.INTERNAL_TYPE, TransactionEnum.DONE_STATE);
+
+    ethAccountRepository.save(fromAccount);
+    if (symbol.equals("ETH")) {
+      throw new RuntimeException("hh");
+    }
+    ethAccountRepository.save(toAccount);
+    transactionRepository.save(tx);
+
+    return new TransactionResponse<>(ResponseStatusEnum.SUCCESS, "OK", null, tx.getState(), null);
+  }
+
   public TransactionResponse<TransferEventResponse> transferFromUser(
           List<String> privateFor, String fromUserId, TransferQDto transferQDto) throws Exception {
     if (!transferQDto.getTokenSymbol().equals("ETH") && !transferQDto.getTokenSymbol().equals("BOX")) {
@@ -325,46 +365,61 @@ public class ContractService {
     boolean isSignValid = APISignUtils.verifySign(toSignStr, transferQDto.getSign());
     if (!isSignValid) {
       log.info("toSignStr is " + toSignStr);
+      // TODO: uncomment below after debugging
 //      throw new InvalidParamException("sign", "srcStr is " + toSignStr);
     }
 
-    // look up toAddress from toUserId
-    if (!transferQDto.getToUserId().isEmpty()) {
-      Optional<EthAccount> toAddressOptional = ethAccountRepository.findByUserId(transferQDto.getToUserId());
-      if (!toAddressOptional.isPresent()) {
-        throw new UserNotExistException(transferQDto.getToUserId(), "ETH");
-      }
-      transferQDto.setToAddress(toAddressOptional.get().getAddress());
-    }
-
-    Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(fromUserId);
-    if (!accountOptional.isPresent()) {
+    Optional<EthAccount> fromAccountOptional = ethAccountRepository.findByUserId(fromUserId);
+    if (!fromAccountOptional.isPresent()) {
       throw new UserNotExistException(fromUserId, "ETH");
     }
+    EthAccount fromEthAccount = fromAccountOptional.get();
 
-    EthAccount fromEthAccount = accountOptional.get();
     BigInteger value = basic2MinUnit(transferQDto.getTokenSymbol(), transferQDto.getAmount());
     BigInteger balance = transferQDto.getTokenSymbol().equals("ETH") ? fromEthAccount.getEthBalance() : fromEthAccount.getBoxBalance();
     if (balance.compareTo(value) < 0) {
       throw new InvalidParamException("amount", "Insufficient fund");
     }
 
-    // transfer from main account, not fromEthAccount
-    TransactionResponse<TransferEventResponse> txResponse;
-    if (transferQDto.getTokenSymbol().equals("ETH")) {
-      txResponse = transferEth(transferQDto.getToAddress(), value);
-      fromEthAccount.setEthBalance(balance.subtract(value));
+    Optional<EthAccount> toAccountOptional;
+    if (!transferQDto.getToUserId().isEmpty()) {
+      // look up account from toUserId
+      toAccountOptional = ethAccountRepository.findByUserId(transferQDto.getToUserId());
+      if (!toAccountOptional.isPresent()) {
+        throw new UserNotExistException(transferQDto.getToUserId(), "ETH");
+      }
     } else {
-      txResponse = transfer(privateFor, tokenSymbol2ContractAddr(transferQDto.getTokenSymbol()), transferQDto.getToAddress(), value);
-      fromEthAccount.setBoxBalance(balance.subtract(value));
+      // look up account from toAddress
+      toAccountOptional = ethAccountRepository.findByAddress(transferQDto.getToAddress());
     }
-    ethAccountRepository.save(fromEthAccount);
-    Timestamp now = new Timestamp(System.currentTimeMillis());
-    transactionRepository.save(
-        new Transaction(txResponse.getTxId(), transferQDto.getTokenSymbol(), fromUserId,
-            fromEthAccount.getAddress(), transferQDto.getToUserId(), transferQDto.getToAddress(),
-            min2BasicUnit(transferQDto.getTokenSymbol(), value).toString(), now, transferQDto.getNote()));
-    return txResponse;
+
+    if (toAccountOptional.isPresent()) {
+      // Internal
+      return internalTransfer(fromEthAccount, toAccountOptional.get(), transferQDto.getTokenSymbol(), value, transferQDto.getNote());
+    } else {
+      // External
+      TransactionResponse<TransferEventResponse> txResponse;
+      if (transferQDto.getTokenSymbol().equals("ETH")) {
+        txResponse = transferEth(transferQDto.getToAddress(), value);
+      } else {
+        txResponse = transfer(privateFor, tokenSymbol2ContractAddr(transferQDto.getTokenSymbol()), transferQDto.getToAddress(), value);
+      }
+
+      fromEthAccount.setEthBalance(balance.subtract(value));
+      Timestamp now = new Timestamp(System.currentTimeMillis());
+      Transaction tx =  new Transaction(txResponse.getTxId(), transferQDto.getTokenSymbol(), fromUserId,
+                      fromEthAccount.getAddress(), transferQDto.getToUserId(), transferQDto.getToAddress(),
+                      min2BasicUnit(transferQDto.getTokenSymbol(), value).toString(), now, transferQDto.getNote(),
+                      TransactionEnum.EXTERNAL_TYPE, TransactionEnum.PENDING_STATE);
+      saveAccountAndTx(fromEthAccount, tx);
+      return txResponse;
+    }
+  }
+
+  @Transactional
+  public void saveAccountAndTx(EthAccount account, Transaction tx) {
+    ethAccountRepository.save(account);
+    transactionRepository.save(tx);
   }
 
   public long decimals(String contractAddress) throws Exception {

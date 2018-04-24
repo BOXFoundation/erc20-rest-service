@@ -16,4 +16,5 @@ public interface EthService {
   BalanceDto balanceOf(String userId);
 
   EstFeeRDto estimateTransferFee(EstFeeQDto estFeeQDto) throws Exception;
+
 }

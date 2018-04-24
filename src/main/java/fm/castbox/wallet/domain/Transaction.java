@@ -12,11 +12,8 @@ import javax.persistence.InheritanceType;
 import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+
+import lombok.*;
 import org.hibernate.validator.constraints.Length;
 
 // entities with generated Id can extend this so they can use @NoArgsConstructor & @AllArgsConstructor
@@ -62,4 +59,10 @@ public class Transaction extends BaseGeneratedId {
 
   @Length(max = 255)
   private String note;
+
+  @Column(nullable = false)
+  private String type;
+
+  @Column(nullable = false)
+  private String state;
 }
