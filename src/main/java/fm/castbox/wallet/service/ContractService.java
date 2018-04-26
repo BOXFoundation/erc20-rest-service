@@ -1,12 +1,18 @@
 package fm.castbox.wallet.service;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.PropertyFilter;
+import com.alibaba.fastjson.serializer.SerializeConfig;
+import com.alibaba.fastjson.serializer.SimplePropertyPreFilter;
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.dto.BalanceDto;
-import fm.castbox.wallet.enumeration.ResponseStatusEnum;
+import fm.castbox.wallet.dto.TransferRDto;
+import fm.castbox.wallet.enumeration.StatusCodeEnum;
 import fm.castbox.wallet.enumeration.TransactionEnum;
-import fm.castbox.wallet.exception.InvalidParamException;
 import fm.castbox.wallet.exception.NonRepeatableException;
 import fm.castbox.wallet.exception.UserNotExistException;
 import java.math.BigDecimal;
@@ -24,7 +30,6 @@ import java.util.function.Function;
 import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.generated.HumanStandardToken;
 import fm.castbox.wallet.properties.NodeProperties;
-import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.properties.WalletProperties;
 import fm.castbox.wallet.repository.EthAccountRepository;
 import fm.castbox.wallet.repository.TransactionRepository;
@@ -38,7 +43,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.stereotype.Service;
 
-import org.springframework.transaction.annotation.Transactional;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.admin.Admin;
 import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
@@ -285,7 +289,7 @@ public class ContractService {
     }
   }
 
-  public TransactionResponse<ApprovalEventResponse> approve(
+  public TransferRDto<ApprovalEventResponse> approve(
       List<String> privateFor, String contractAddress, String spender, BigInteger value)
       throws Exception {
     HumanStandardToken humanStandardToken = load(contractAddress, privateFor);
@@ -343,7 +347,7 @@ public class ContractService {
     }
   }
 
-  public TransactionResponse<TransferEventResponse> transfer(
+  public TransferRDto<TransferEventResponse> transfer(
       List<String> privateFor, String contractAddress, String to, BigInteger value)
       throws Exception {
     unlockAccount();
@@ -357,7 +361,7 @@ public class ContractService {
     }
   }
 
-  public TransactionResponse<TransferEventResponse> transferEth(String to, BigInteger value)
+  public TransferRDto<TransferEventResponse> transferEth(String to, BigInteger value)
       throws Exception {
     unlockAccount();
 
@@ -370,15 +374,15 @@ public class ContractService {
     Response.Error ethError = ethSendTransaction.getError();
     if ( Optional.ofNullable(ethError).isPresent() ) {
       if (ethError.getCode() == -32000) { // known transaction error
-        throw new NonRepeatableException("transfer", ethError.getMessage());
+        throw new NonRepeatableException(StatusCodeEnum.REPEAT_TRANSFER_REQ, "transfer", ethError.getMessage());
       } else {
         throw new RuntimeException("Web3j Error " + ethError.getCode() + ", " + ethError.getMessage());
       }
     }
-    return new TransactionResponse<>(ethSendTransaction.getTransactionHash());
+    return new TransferRDto<>(ethSendTransaction.getTransactionHash());
   }
 
-  public TransactionResponse<ApprovalEventResponse> approveAndCall(
+  public TransferRDto<ApprovalEventResponse> approveAndCall(
       List<String> privateFor, String contractAddress, String spender, BigInteger value,
       String extraData) throws Exception {
     HumanStandardToken humanStandardToken = load(contractAddress, privateFor);
@@ -406,22 +410,12 @@ public class ContractService {
     }
   }
 
-  public MappingJacksonValue getTransactions(String userId, String fields, Pageable pageable) {
+  public List<Transaction> getTransactions(String userId, Pageable pageable) {
     Optional<EthAccount> accountOptional = ethAccountRepository.findByUserId(userId);
     if (!accountOptional.isPresent()) {
       throw new UserNotExistException(userId, "ETH");
     }
-    List<Transaction> txs = transactionRepository.findByAddress(accountOptional.get().getAddress(), pageable);
-
-    MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(txs);
-    SimpleFilterProvider filters = new SimpleFilterProvider().setFailOnUnknownId(false);
-    // return all fields when not specified
-    if (fields != null) {
-      String[] includedFields = fields.split(",");
-      filters.addFilter("txFilter", SimpleBeanPropertyFilter.filterOutAllExcept(includedFields));
-    }
-    mappingJacksonValue.setFilters(filters);
-    return mappingJacksonValue;
+    return transactionRepository.findByAddress(accountOptional.get().getAddress(), pageable);
   }
 
   public MappingJacksonValue getTransaction(Long id) {
@@ -450,7 +444,7 @@ public class ContractService {
     return value.longValueExact();
   }
 
-  private TransactionResponse<ApprovalEventResponse>
+  private TransferRDto<ApprovalEventResponse>
   processApprovalEventResponse(
       HumanStandardToken humanStandardToken,
       TransactionReceipt transactionReceipt) {
@@ -461,7 +455,7 @@ public class ContractService {
         ApprovalEventResponse::new);
   }
 
-  private TransactionResponse<TransferEventResponse>
+  private TransferRDto<TransferEventResponse>
   processTransferEventsResponse(
       HumanStandardToken humanStandardToken,
       TransactionReceipt transactionReceipt) {
@@ -472,14 +466,14 @@ public class ContractService {
         TransferEventResponse::new);
   }
 
-  private <T, R> TransactionResponse<R> processEventResponse(
+  private <T, R> TransferRDto<R> processEventResponse(
       List<T> eventResponses, TransactionReceipt transactionReceipt, Function<T, R> map) {
     if (!eventResponses.isEmpty()) {
-      return new TransactionResponse<>(
+      return new TransferRDto<>(
           transactionReceipt.getTransactionHash(),
           map.apply(eventResponses.get(0)));
     } else {
-      return new TransactionResponse<>(
+      return new TransferRDto<>(
           transactionReceipt.getTransactionHash());
     }
   }

@@ -3,7 +3,7 @@ package fm.castbox.wallet.service.impl;
 import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.dto.*;
-import fm.castbox.wallet.enumeration.ResponseStatusEnum;
+import fm.castbox.wallet.enumeration.StatusCodeEnum;
 import fm.castbox.wallet.enumeration.TransactionEnum;
 import fm.castbox.wallet.exception.InvalidParamException;
 import fm.castbox.wallet.exception.UserNotExistException;
@@ -35,18 +35,21 @@ public class TransferServiceImpl implements TransferService {
   private ContractService contractService;
 
   @Override
-  public TransactionResponse<ContractService.TransferEventResponse> transferFromUser(
+  public TransferRDto<ContractService.TransferEventResponse> transferFromUser(
           String fromUserId, TransferQDto transferQDto) throws Exception {
     if (!transferQDto.getTokenSymbol().equals("ETH") && !transferQDto.getTokenSymbol().equals("BOX")) {
-      throw new InvalidParamException("tokenSymbol", "unsupported token: " + transferQDto.getTokenSymbol());
+      throw new InvalidParamException(StatusCodeEnum.UNSUPPORTED_SYMBOL, "tokenSymbol",
+                                      "unsupported token: " + transferQDto.getTokenSymbol());
     }
     if (!Optional.ofNullable(transferQDto.getToUserId()).isPresent()
             && !Optional.ofNullable(transferQDto.getToAddress()).isPresent()) {
-      throw new InvalidParamException("toUserId & toAddress", "cannot be both missing");
+      throw new InvalidParamException(StatusCodeEnum.ADDRESS_OR_USER_ID_MISSING,
+              "toUserId & toAddress", "cannot be both missing");
     }
     if (Optional.ofNullable(transferQDto.getToUserId()).isPresent()
             && Optional.ofNullable(transferQDto.getToAddress()).isPresent()) {
-      throw new InvalidParamException("toUserId & toAddress", "cannot be both present");
+      throw new InvalidParamException(StatusCodeEnum.ADDRESS_AND_USER_ID_BOTH_PRESENT,
+              "toUserId & toAddress", "cannot be both present");
     }
 
     APISignUtils.verifySignedObject(transferQDto);
@@ -80,13 +83,13 @@ public class TransferServiceImpl implements TransferService {
 
   // TODO: Fix Transactional Not Working Properly.
   @Transactional
-  public TransactionResponse internalTransfer(EthAccount fromAccount, EthAccount toAccount,
-                                              String symbol, String amount, String note) throws Exception {
+  public TransferRDto internalTransfer(EthAccount fromAccount, EthAccount toAccount,
+                                       String symbol, String amount, String note) throws Exception {
 
     BigInteger transfer_value = contractService.basic2MinUnit(symbol, amount);
 
     if (transfer_value.compareTo(BigInteger.ZERO) <= 0) {
-      throw new InvalidParamException("transfer value", "cannot be negative");
+      throw new InvalidParamException(StatusCodeEnum.TRANSFER_AMOUNT_NEGATIVE, "transfer value", "cannot be negative");
     }
 
     // reload objects to prevent concurrency problem
@@ -108,15 +111,15 @@ public class TransferServiceImpl implements TransferService {
     ethAccountRepository.save(toAccount);
     transactionRepository.save(tx);
 
-    return new TransactionResponse<>(ResponseStatusEnum.SUCCESS, "OK", null, tx.getState(), null);
+    return new TransferRDto<>(StatusCodeEnum.SUCCESS, "OK", null, tx.getState(), null);
   }
 
-  public TransactionResponse externalTransfer(EthAccount fromAccount, EthAccount toAccount,
-                                              String symbol, String amount, String note) throws Exception {
+  public TransferRDto externalTransfer(EthAccount fromAccount, EthAccount toAccount,
+                                       String symbol, String amount, String note) throws Exception {
     BigInteger transfer_value = contractService.basic2MinUnit(symbol, amount);
     validateTransferableBalance(fromAccount, symbol, transfer_value);
 
-    TransactionResponse<ContractService.TransferEventResponse> txResponse;
+    TransferRDto<ContractService.TransferEventResponse> txResponse;
     if (symbol.equals("ETH")) {
       txResponse = contractService.transferEth(toAccount.getAddress(), transfer_value);
     } else {
@@ -150,7 +153,7 @@ public class TransferServiceImpl implements TransferService {
     if (balance.compareTo(transferValue) < 0) {
       log.error("Insufficient amount for transfer - uid:" + fromAccount.getUserId()
               + " symbol:" + symbol + " value:" + transferValue + " balance:" + balance);
-      throw new InvalidParamException("amount", "Insufficient fund");
+      throw new InvalidParamException(StatusCodeEnum.INSUFFICIENT_BALANCE, "amount", "Insufficient fund");
     }
   }
 }

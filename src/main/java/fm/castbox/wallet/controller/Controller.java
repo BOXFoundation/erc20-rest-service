@@ -1,19 +1,23 @@
 package fm.castbox.wallet.controller;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.PropertyFilter;
+import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.dto.BalanceDto;
+import fm.castbox.wallet.dto.GeneralResponse;
+import fm.castbox.wallet.dto.TransferRDto;
 import fm.castbox.wallet.dto.TransferQDto;
 import fm.castbox.wallet.service.TransferService;
 import io.swagger.annotations.ApiImplicitParams;
 
 import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
 import fm.castbox.wallet.properties.NodeProperties;
-import fm.castbox.wallet.dto.TransactionResponse;
 import fm.castbox.wallet.service.ContractService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
@@ -98,7 +102,7 @@ public class Controller {
           paramType = "header",
           dataType = "string")
   @RequestMapping(value = "/0.1/{contractAddress}/approve", method = RequestMethod.POST)
-  TransactionResponse<ContractService.ApprovalEventResponse> approve(
+  TransferRDto<ContractService.ApprovalEventResponse> approve(
           HttpServletRequest request,
           @PathVariable String contractAddress,
           @RequestBody ApproveRequest approveRequest) throws Exception {
@@ -124,11 +128,11 @@ public class Controller {
           paramType = "header",
           dataType = "string")
   @RequestMapping(value = "/0.1/eth/users/{userId}/transfer", method = RequestMethod.POST)
-  TransactionResponse<ContractService.TransferEventResponse> transferFromUser(
+  GeneralResponse<TransferRDto<ContractService.TransferEventResponse>> transferFromUser(
           HttpServletRequest request,
           @PathVariable String userId,
           @Valid @RequestBody TransferQDto transferQDto) throws Exception {
-    return transferService.transferFromUser(userId, transferQDto);
+    return new GeneralResponse(transferService.transferFromUser(userId, transferQDto));
   }
 
   @ApiOperation("Get decimal precision of tokens")
@@ -168,7 +172,7 @@ public class Controller {
           paramType = "header",
           dataType = "string")
   @RequestMapping(value = "/0.1/{contractAddress}/approveAndCall", method = RequestMethod.POST)
-  TransactionResponse<ContractService.ApprovalEventResponse> approveAndCall(
+  TransferRDto<ContractService.ApprovalEventResponse> approveAndCall(
           HttpServletRequest request,
           @PathVariable String contractAddress,
           @RequestBody ApproveAndCallRequest approveAndCallRequest) throws Exception {
@@ -204,11 +208,12 @@ public class Controller {
                           "Multiple sort criteria are supported.")
   })
   @RequestMapping(value = "/0.1/eth/users/{userId}/transactions", method = RequestMethod.GET)
-  MappingJacksonValue getTransactions(
+  GeneralResponse<JSONArray> getTransactions(
           @PathVariable String userId,
           @RequestParam(required = false) String fields,
           Pageable pageable) throws Exception {
-    return contractService.getTransactions(userId, fields, pageable);
+    List<Transaction> txs = contractService.getTransactions(userId, pageable);
+    return new GeneralResponse(JSON.parseArray(JSON.toJSONString(txs, getPropertyFilter(fields))));
   }
 
   @ApiOperation(value = "Get details of a transaction", notes = "id is integer, not txid")
@@ -246,6 +251,17 @@ public class Controller {
     } else {
       return Arrays.asList(privateFor.split(","));
     }
+  }
+
+  private PropertyFilter getPropertyFilter(String fields){
+    PropertyFilter filter = (object, name, value) -> {
+      if (fields == null || Arrays.asList(fields.split(",")).indexOf(name) >= 0) {
+        return true;
+      } else {
+        return false;
+      }
+    };
+    return filter;
   }
 
   @Data

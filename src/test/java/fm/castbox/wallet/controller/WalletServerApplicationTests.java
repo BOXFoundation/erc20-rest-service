@@ -3,8 +3,8 @@ package fm.castbox.wallet.controller;
 import java.math.BigInteger;
 import java.util.Arrays;
 
+import fm.castbox.wallet.dto.TransferRDto;
 import fm.castbox.wallet.properties.NodeProperties;
-import fm.castbox.wallet.dto.TransactionResponse;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,11 +156,11 @@ public class WalletServerApplicationTests {
 
     private void verifyApproveTx(
             String contractAddress, Controller.ApproveRequest approveRequest) {
-        ResponseEntity<TransactionResponse> responseEntity =
+        ResponseEntity<TransferRDto> responseEntity =
                 this.restTemplate.postForEntity(
                         "/" + contractAddress + "/approve",
                         buildEntity(approveRequest),
-                        TransactionResponse.class);
+                        TransferRDto.class);
         verifyPostResponse(responseEntity);
     }
 
@@ -177,14 +177,14 @@ public class WalletServerApplicationTests {
         assertThat(responseEntity.getStatusCode(), is(HttpStatus.OK));
     }
 
-    private void verifyPostResponse(ResponseEntity<TransactionResponse> responseEntity) {
+    private void verifyPostResponse(ResponseEntity<TransferRDto> responseEntity) {
         verifyPostResponseBody(responseEntity);
         assertNotNull(responseEntity.getBody().getEvent());
     }
 
-    private void verifyPostResponseBody(ResponseEntity<TransactionResponse> responseEntity) {
+    private void verifyPostResponseBody(ResponseEntity<TransferRDto> responseEntity) {
         verifyHttpStatus(responseEntity);
-        TransactionResponse body = responseEntity.getBody();
+        TransferRDto body = responseEntity.getBody();
         assertNotNull(body);
         String transactionHash = body.getTxId();
         assertTrue(transactionHash.startsWith("0x"));
