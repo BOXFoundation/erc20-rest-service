@@ -61,7 +61,7 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
   @ExceptionHandler({InvalidParamException.class})
   public ResponseEntity<Object> handleInvalidParamException(InvalidParamException ex,
                                                             WebRequest request) {
-    return handleExceptionInternal(ex, new GeneralResponse(HttpStatus.BAD_REQUEST.value(),
+    return handleExceptionInternal(ex, new GeneralResponse(ex.getStatus(),
                     ex.getMessage(), "InvalidParamException"), new HttpHeaders(),
             HttpStatus.BAD_REQUEST, request);
   }
@@ -69,7 +69,7 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
   @ExceptionHandler({NonRepeatableException.class})
   public ResponseEntity<Object> handleNonRepeatableException(NonRepeatableException ex,
                                                             WebRequest request) {
-    return handleExceptionInternal(ex, new GeneralResponse(HttpStatus.ACCEPTED.value(),
+    return handleExceptionInternal(ex, new GeneralResponse(ex.getStatus(),
                     ex.getMessage(), "NonRepeatableException"), new HttpHeaders(),
             HttpStatus.ACCEPTED, request);
   }
