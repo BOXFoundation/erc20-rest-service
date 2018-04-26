@@ -8,6 +8,8 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+
+import fm.castbox.wallet.exception.InvalidParamException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -67,5 +69,29 @@ public class EthAccount {
 
   public void setBoxBalance(BigInteger boxBalance) {
     this.boxBalance = boxBalance.toString();
+  }
+
+  public BigInteger getBalanceOf(String tokenSymbol) throws InvalidParamException {
+    switch (tokenSymbol.toUpperCase()) {
+      case "BOX":
+        return getBoxBalance();
+      case "ETH":
+        return getEthBalance();
+      default:
+        throw new InvalidParamException("symbol", "unsupported token: " + tokenSymbol);
+    }
+  }
+
+  public void setBalanceOf(String tokenSymbol, BigInteger balance) {
+    switch (tokenSymbol.toUpperCase()) {
+      case "BOX":
+        setBoxBalance(balance);
+        break;
+      case "ETH":
+        setEthBalance(balance);
+        break;
+      default:
+        throw new InvalidParamException("symbol", "unsupported token: " + tokenSymbol);
+    }
   }
 }

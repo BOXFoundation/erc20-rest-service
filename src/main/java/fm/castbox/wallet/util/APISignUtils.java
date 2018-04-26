@@ -8,6 +8,7 @@ import java.util.*;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
+import fm.castbox.wallet.exception.InvalidParamException;
 import fm.castbox.wallet.properties.APIProperties;
 import fm.castbox.wallet.util.algorithm.ECDSAAlgorithm;
 import lombok.extern.slf4j.Slf4j;
@@ -96,6 +97,17 @@ public class APISignUtils {
         return false; // caused by invalid sign format
       }
       throw e;
+    }
+  }
+
+  public static void verifySignedObject(Object objectWithSignField) throws Exception {
+    String toSignStr = APISignUtils.prepareStrToSign(objectWithSignField, "sign");
+    String objectSign = (String) PropertyUtils.getProperty(objectWithSignField, "sign");
+    boolean isSignValid = APISignUtils.verifySign(toSignStr, objectSign);
+    if (!isSignValid) {
+      log.info("toSignStr is " + toSignStr);
+      // TODO: uncomment below after debugging
+//      throw new InvalidParamException("Object Sign", "srcStr is " + toSignStr);
     }
   }
 

@@ -143,6 +143,7 @@ public class EthServiceImpl implements EthService {
     }
   }
 
+
   private void save(EthAccount ethAccount) {
     ethAccount.setPrivateKey(textEncryptor.encrypt(ethAccount.getPrivateKey()));
     ethAccountRepository.save(ethAccount);
