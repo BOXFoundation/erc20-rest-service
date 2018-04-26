@@ -6,6 +6,8 @@ import fm.castbox.wallet.domain.EthAccount;
 import fm.castbox.wallet.dto.BalanceDto;
 import fm.castbox.wallet.dto.EstFeeQDto;
 import fm.castbox.wallet.dto.EstFeeRDto;
+import fm.castbox.wallet.enumeration.CommonEnum;
+import fm.castbox.wallet.enumeration.StatusCodeEnum;
 import fm.castbox.wallet.exception.InvalidParamException;
 import fm.castbox.wallet.exception.UserIdAlreadyExistException;
 import fm.castbox.wallet.exception.UserNotExistException;
@@ -114,7 +116,7 @@ public class EthServiceImpl implements EthService {
   public EstFeeRDto estimateTransferFee(EstFeeQDto estFeeQDto) throws Exception {
     String symbol = estFeeQDto.getSymbol().trim().toUpperCase();
     if (!"BOX".equals(symbol) && !"ETH".equals(symbol)) {
-      throw new InvalidParamException("symbol", "unsupported token: " + symbol);
+      throw new InvalidParamException(StatusCodeEnum.UNSUPPORTED_SYMBOL, "symbol", "unsupported token: " + symbol);
     }
 
     BigInteger gasEst = web3jService.estimateTransferGas();
@@ -135,10 +137,10 @@ public class EthServiceImpl implements EthService {
 
     BigDecimal bdAmount = new BigDecimal(estFeeQDto.getAmount());
     if (bdAmount.compareTo(symbolFeeEst) > 0){
-      return new EstFeeRDto(0, "OK",
+      return new EstFeeRDto(StatusCodeEnum.SUCCESS, CommonEnum.OK,
               symbolFeeEst.toString(), ethFeeEst.toString(), timestamp);
     } else {
-      return new EstFeeRDto(1, "Transfer Fee May Be Insufficient",
+      return new EstFeeRDto(StatusCodeEnum.TRANSFER_AMOUNT_LESS_THAN_FEE, "Transfer fee less than amount",
               symbolFeeEst.toString(), ethFeeEst.toString(), timestamp);
     }
   }

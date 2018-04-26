@@ -1,5 +1,6 @@
 package fm.castbox.wallet.controller;
 
+import com.alibaba.fastjson.serializer.JSONSerializable;
 import fm.castbox.wallet.dto.*;
 import fm.castbox.wallet.service.EthService;
 import fm.castbox.wallet.util.APISignUtils;
@@ -54,8 +55,8 @@ public class EthController {
 
   @ApiOperation("Estimate fee cost for a transfer intent")
   @PostMapping("/0.1/eth/estimate-transfer-fee")
-  public EstFeeRDto estimateTransferFee(@Valid @RequestBody EstFeeQDto estFeeQDto) throws Exception{
-    return ethService.estimateTransferFee(estFeeQDto);
+  public GeneralResponse<EstFeeRDto> estimateTransferFee(@Valid @RequestBody EstFeeQDto estFeeQDto) throws Exception{
+    return new GeneralResponse(ethService.estimateTransferFee(estFeeQDto));
   }
 
 }

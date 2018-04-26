@@ -9,6 +9,7 @@ import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
+import fm.castbox.wallet.enumeration.StatusCodeEnum;
 import fm.castbox.wallet.exception.InvalidParamException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -78,7 +79,7 @@ public class EthAccount {
       case "ETH":
         return getEthBalance();
       default:
-        throw new InvalidParamException("symbol", "unsupported token: " + tokenSymbol);
+        throw new InvalidParamException(StatusCodeEnum.UNSUPPORTED_SYMBOL, "symbol", "unsupported token: " + tokenSymbol);
     }
   }
 
@@ -91,7 +92,7 @@ public class EthAccount {
         setEthBalance(balance);
         break;
       default:
-        throw new InvalidParamException("symbol", "unsupported token: " + tokenSymbol);
+        throw new InvalidParamException(StatusCodeEnum.UNSUPPORTED_SYMBOL, "symbol", "unsupported token: " + tokenSymbol);
     }
   }
 }
