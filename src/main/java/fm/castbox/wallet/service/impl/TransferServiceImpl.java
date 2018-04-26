@@ -61,7 +61,7 @@ public class TransferServiceImpl implements TransferService {
     EthAccount fromEthAccount = fromAccountOptional.get();
 
     Optional<EthAccount> toAccountOptional;
-    if (!transferQDto.getToUserId().isEmpty()) {
+    if (Optional.ofNullable(transferQDto.getToUserId()).isPresent()) {
       // look up account from toUserId
       toAccountOptional = ethAccountRepository.findByUserId(transferQDto.getToUserId());
       if (!toAccountOptional.isPresent()) {
@@ -76,7 +76,7 @@ public class TransferServiceImpl implements TransferService {
       return internalTransfer(fromEthAccount, toAccountOptional.get(),
                                       transferQDto.getTokenSymbol(), transferQDto.getAmount(), transferQDto.getNote());
     } else {
-      return externalTransfer(fromEthAccount, toAccountOptional.get(),
+      return externalTransfer(fromEthAccount, transferQDto.getToAddress(),
                                               transferQDto.getTokenSymbol(), transferQDto.getAmount(), transferQDto.getNote());
     }
   }
@@ -114,19 +114,19 @@ public class TransferServiceImpl implements TransferService {
     return new TransferRDto<>(StatusCodeEnum.SUCCESS, "OK", null, tx.getState(), null);
   }
 
-  public TransferRDto externalTransfer(EthAccount fromAccount, EthAccount toAccount,
+  public TransferRDto externalTransfer(EthAccount fromAccount, String toAddress,
                                        String symbol, String amount, String note) throws Exception {
     BigInteger transfer_value = contractService.basic2MinUnit(symbol, amount);
     validateTransferableBalance(fromAccount, symbol, transfer_value);
 
     TransferRDto<ContractService.TransferEventResponse> txResponse;
     if (symbol.equals("ETH")) {
-      txResponse = contractService.transferEth(toAccount.getAddress(), transfer_value);
+      txResponse = contractService.transferEth(toAddress, transfer_value);
     } else {
-      txResponse = contractService.transfer(null, contractService.tokenSymbol2ContractAddr(symbol), toAccount.getAddress(), transfer_value);
+      txResponse = contractService.transfer(null, contractService.tokenSymbol2ContractAddr(symbol), toAddress, transfer_value);
     }
 
-    recordExternalTransferLocally(symbol, fromAccount, toAccount.getAddress(),
+    recordExternalTransferLocally(symbol, fromAccount, toAddress,
             txResponse.getTxId(), transfer_value, note);
     return txResponse;
   }
