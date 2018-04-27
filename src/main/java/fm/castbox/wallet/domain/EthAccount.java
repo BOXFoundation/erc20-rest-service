@@ -36,8 +36,7 @@ public class EthAccount {
 
   @NotBlank
   @Length(min = 64, max = 64)
-  // TODO: add unique check
-  @Column(nullable = false, columnDefinition = "CHAR(64)")
+  @Column(unique = true, nullable = false, columnDefinition = "CHAR(64)")
   private String privateKey;
 
   // String to accommodate BigInteger

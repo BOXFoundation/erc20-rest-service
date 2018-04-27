@@ -1,52 +1,46 @@
 package fm.castbox.wallet.service;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.serializer.PropertyFilter;
-import com.alibaba.fastjson.serializer.SerializeConfig;
-import com.alibaba.fastjson.serializer.SimplePropertyPreFilter;
-import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import static org.web3j.tx.Contract.GAS_LIMIT;
+import static org.web3j.tx.ManagedTransaction.GAS_PRICE;
+
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import fm.castbox.wallet.domain.EthAccount;
+import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.dto.BalanceDto;
 import fm.castbox.wallet.dto.TransferRDto;
 import fm.castbox.wallet.enumeration.StatusCodeEnum;
 import fm.castbox.wallet.enumeration.TransactionEnum;
 import fm.castbox.wallet.exception.NonRepeatableException;
 import fm.castbox.wallet.exception.UserNotExistException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
-
-import fm.castbox.wallet.domain.Transaction;
 import fm.castbox.wallet.generated.HumanStandardToken;
 import fm.castbox.wallet.properties.NodeProperties;
 import fm.castbox.wallet.properties.WalletProperties;
 import fm.castbox.wallet.repository.EthAccountRepository;
 import fm.castbox.wallet.repository.TransactionRepository;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.stereotype.Service;
-
+import org.web3j.crypto.Credentials;
+import org.web3j.crypto.ECKeyPair;
+import org.web3j.crypto.Keys;
+import org.web3j.crypto.RawTransaction;
+import org.web3j.crypto.TransactionEncoder;
 import org.web3j.protocol.Web3j;
-import org.web3j.protocol.admin.Admin;
-import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
-
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.Response;
@@ -54,15 +48,10 @@ import org.web3j.protocol.core.methods.response.EthGetCode;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
-import org.web3j.quorum.Quorum;
-import org.web3j.quorum.tx.ClientTransactionManager;
-import org.web3j.tx.TransactionManager;
 import org.web3j.utils.Convert;
 import org.web3j.utils.Convert.Unit;
+import org.web3j.utils.Numeric;
 import rx.Subscription;
-
-import static org.web3j.tx.Contract.GAS_LIMIT;
-import static org.web3j.tx.ManagedTransaction.GAS_PRICE;
 
 /**
  * Our smart contract service.
@@ -71,23 +60,13 @@ import static org.web3j.tx.ManagedTransaction.GAS_PRICE;
 @Slf4j
 public class ContractService {
 
-  // TODO: full node does not return private key, may fill in later
-  private static final String DUMMY_PRIVATE_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-
-  // override default timeout of 20 attempts every 1 second
-  private static final int SLEEP_DURATION = 1000;
-  private static final int ATTEMPTS = 60;
-
-  private final Quorum quorum;
-
   private final NodeProperties nodeProperties;
 
   private final WalletProperties walletProperties;
 
-
-  private final Admin admin;
-
   private final Web3j web3j;
+
+  private final Credentials masterAccountCred;
 
   private HashMap<String /* contract address */, Subscription /* contract event subscription */> contractSubscriptions = new HashMap<>();
 
@@ -98,18 +77,18 @@ public class ContractService {
   private TransactionRepository transactionRepository;
 
   @Autowired
-  public ContractService(Quorum quorum, NodeProperties nodeProperties,
+  public ContractService(NodeProperties nodeProperties,
       WalletProperties walletProperties, EthAccountRepository ethAccountRepository,
       TransactionRepository transactionRepository) throws Exception {
-    this.quorum = quorum;
     this.nodeProperties = nodeProperties;
     this.walletProperties = walletProperties;
     this.ethAccountRepository = ethAccountRepository;
     this.transactionRepository = transactionRepository;
 
-    admin = Admin.build(new HttpService(nodeProperties.getNodeEndpoint()));
-
     web3j = Web3j.build(new HttpService(nodeProperties.getNodeEndpoint()));
+
+    masterAccountCred = Credentials.create(walletProperties.getPrivateKey());
+    log.info("Master account address " + masterAccountCred.getAddress());
 
     subscribeToEthTransferEvents();
   }
@@ -234,13 +213,9 @@ public class ContractService {
   public String deploy(
       List<String> privateFor, BigInteger initialAmount, String tokenName, BigInteger decimalUnits,
       String tokenSymbol) throws Exception {
-    unlockAccount();
-
     try {
-      TransactionManager transactionManager = new ClientTransactionManager(
-          quorum, nodeProperties.getFromAddress(), privateFor, ATTEMPTS, SLEEP_DURATION);
       HumanStandardToken humanStandardToken = HumanStandardToken.deploy(
-          quorum, transactionManager, GAS_PRICE, GAS_LIMIT,
+          web3j, masterAccountCred, GAS_PRICE, GAS_LIMIT,
           initialAmount, tokenName, decimalUnits,
           tokenSymbol).send();
       String contractAddress = humanStandardToken.getContractAddress();
@@ -261,11 +236,14 @@ public class ContractService {
       return accountOptional.get().getAddress();
     }
     // create a new account for user
-    String address = admin.personalNewAccount(walletProperties.getPassphrase()).send()
-        .getAccountId();
-    // initial balance 0
+    ECKeyPair ecKeyPair = Keys.createEcKeyPair();
+    // prepend w/ "0x"
+    String address = Numeric.prependHexPrefix(Keys.getAddress(ecKeyPair));
+    // convert from BigInteger
+    String privateKey = ecKeyPair.getPrivateKey().toString(16);
     Timestamp now = new Timestamp(System.currentTimeMillis());
-    ethAccountRepository.save(new EthAccount(userId, address, DUMMY_PRIVATE_KEY, "0", "0", now, now));
+    // initial balance 0
+    ethAccountRepository.save(new EthAccount(userId, address, privateKey, "0", "0", now, now));
     return address;
   }
 
@@ -292,7 +270,7 @@ public class ContractService {
   public TransferRDto<ApprovalEventResponse> approve(
       List<String> privateFor, String contractAddress, String spender, BigInteger value)
       throws Exception {
-    HumanStandardToken humanStandardToken = load(contractAddress, privateFor);
+    HumanStandardToken humanStandardToken = load(contractAddress);
     try {
       TransactionReceipt transactionReceipt = humanStandardToken
           .approve(spender, value).send();
@@ -350,8 +328,7 @@ public class ContractService {
   public TransferRDto<TransferEventResponse> transfer(
       List<String> privateFor, String contractAddress, String to, BigInteger value)
       throws Exception {
-    unlockAccount();
-    HumanStandardToken humanStandardToken = load(contractAddress, privateFor);
+    HumanStandardToken humanStandardToken = load(contractAddress);
     try {
       TransactionReceipt transactionReceipt = humanStandardToken
           .transfer(to, value).send();
@@ -363,14 +340,15 @@ public class ContractService {
 
   public TransferRDto<TransferEventResponse> transferEth(String to, BigInteger value)
       throws Exception {
-    unlockAccount();
-
     BigInteger nonce = getNonce(nodeProperties.getFromAddress());
-    org.web3j.protocol.core.methods.request.Transaction transaction = org.web3j.protocol.core.methods.request.Transaction
-        .createEtherTransaction(
-            nodeProperties.getFromAddress(), nonce, GAS_PRICE, GAS_LIMIT, to, value);
+    RawTransaction rawTx = RawTransaction.createEtherTransaction(
+        nonce, GAS_PRICE, GAS_LIMIT, to, value);
 
-    EthSendTransaction ethSendTransaction = web3j.ethSendTransaction(transaction).send();
+    byte[] signedMessage = TransactionEncoder.signMessage(rawTx, masterAccountCred);
+    String hexValue = Numeric.toHexString(signedMessage);
+
+    EthSendTransaction ethSendTransaction =
+        web3j.ethSendRawTransaction(hexValue).send();
     Response.Error ethError = ethSendTransaction.getError();
     if ( Optional.ofNullable(ethError).isPresent() ) {
       if (ethError.getCode() == -32000) { // known transaction error
@@ -385,7 +363,7 @@ public class ContractService {
   public TransferRDto<ApprovalEventResponse> approveAndCall(
       List<String> privateFor, String contractAddress, String spender, BigInteger value,
       String extraData) throws Exception {
-    HumanStandardToken humanStandardToken = load(contractAddress, privateFor);
+    HumanStandardToken humanStandardToken = load(contractAddress);
     try {
       TransactionReceipt transactionReceipt = humanStandardToken
           .approveAndCall(
@@ -426,18 +404,9 @@ public class ContractService {
     return mappingJacksonValue;
   }
 
-  private HumanStandardToken load(String contractAddress, List<String> privateFor) {
-    TransactionManager transactionManager = new ClientTransactionManager(
-        quorum, nodeProperties.getFromAddress(), privateFor, ATTEMPTS, SLEEP_DURATION);
-    return HumanStandardToken.load(
-        contractAddress, quorum, transactionManager, GAS_PRICE, GAS_LIMIT);
-  }
-
   private HumanStandardToken load(String contractAddress) {
-    TransactionManager transactionManager = new ClientTransactionManager(
-        quorum, nodeProperties.getFromAddress(), Collections.emptyList(), ATTEMPTS, SLEEP_DURATION);
     return HumanStandardToken.load(
-        contractAddress, quorum, transactionManager, GAS_PRICE, GAS_LIMIT);
+        contractAddress, web3j, masterAccountCred, GAS_PRICE, GAS_LIMIT);
   }
 
   private long extractLongValue(BigInteger value) {
@@ -475,15 +444,6 @@ public class ContractService {
     } else {
       return new TransferRDto<>(
           transactionReceipt.getTransactionHash());
-    }
-  }
-
-  private void unlockAccount() throws Exception {
-    PersonalUnlockAccount personalUnlockAccount = admin.
-        personalUnlockAccount(nodeProperties.getFromAddress(), walletProperties.getPassphrase())
-        .send();
-    if (null == personalUnlockAccount.accountUnlocked()) {
-      throw new Exception("Unlocking account failed");
     }
   }
 

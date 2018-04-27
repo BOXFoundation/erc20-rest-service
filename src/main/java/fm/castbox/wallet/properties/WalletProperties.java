@@ -8,4 +8,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class WalletProperties {
     private String passphrase;  // passphrase to encrypt wallet files
     private String dir;  // directory where wallet files reside in
+    private String privateKey; // private key of master account
 }

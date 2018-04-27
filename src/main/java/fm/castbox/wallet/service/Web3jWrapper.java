@@ -49,26 +49,4 @@ public class Web3jWrapper {
               .sendAsync().get();
       return ethEstimateGas.getAmountUsed();
   }
-
-  public String dispatchETHTransaction(
-          String fromAddress, String privateKey, String publicKey, 
-          String toAddress, BigInteger amount) throws Exception {
-    EthGetTransactionCount ethGetTransactionCount = web3j.ethGetTransactionCount(
-                fromAddress, DefaultBlockParameterName.LATEST).sendAsync().get();
-    BigInteger nonce = ethGetTransactionCount.getTransactionCount();
-
-    RawTransaction rawTx = RawTransaction.createEtherTransaction(
-                nonce, GAS_PRICE, GAS_LIMIT, toAddress, amount);
-    Credentials credentials = Credentials.create(privateKey, publicKey);
-
-    byte[] signedMessage = TransactionEncoder.signMessage(rawTx, credentials);
-    String hexValue = Numeric.toHexString(signedMessage);
-
-    EthSendTransaction ethSendTransaction =
-                web3j.ethSendRawTransaction(hexValue).sendAsync().get();
-    
-    String txHash = ethSendTransaction.getTransactionHash();
-    return txHash;
-  }
-  
 }

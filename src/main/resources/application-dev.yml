@@ -16,9 +16,9 @@ contentbox:
     # To use IPC simply provide a file path to the socket, such as /path/to/geth.ipc
     nodeEndpoint: http://localhost:8545
     # The Ethereum or Quorum ethAddress we wish to use when transacting.
-    # Note - this ethAddress must be already unlocked in the client
     fromAddress: "0xf6de496ec5601d74937ddd77af09c8cd4ba41ab5"
   wallet:
+    privatekey: "383be05af94508eaae115a7c4cf9e2970b122aa7e0ce4f481d267ecf6c9e5ff8"
     # passphrase to encrypt wallet files
     passphrase: "password"
     dir: "/User/frankdai/wallet_files"
