@@ -1,6 +1,8 @@
 package fm.castbox.wallet.domain;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
+
+import java.sql.Time;
 import java.sql.Timestamp;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -13,8 +15,12 @@ import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.validator.constraints.Length;
+import org.springframework.data.annotation.CreatedDate;
 
 // entities with generated Id can extend this so they can use @NoArgsConstructor & @AllArgsConstructor
 @Entity
@@ -33,7 +39,7 @@ abstract class BaseGeneratedId {
 @AllArgsConstructor
 // Generating equals/hashCode implementation but without a call to superclass
 @EqualsAndHashCode(callSuper=false)
-@JsonFilter("txFilter")
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Transaction extends BaseGeneratedId {
   // TODO: only applies to on-chain tx
   private String txId;
@@ -53,10 +59,6 @@ public class Transaction extends BaseGeneratedId {
   @Column(nullable = false)
   private String amount;
 
-  @NotNull
-  @Column(nullable = false)
-  private Timestamp transactedAt;
-
   @Length(max = 255)
   private String note;
 
@@ -65,4 +67,14 @@ public class Transaction extends BaseGeneratedId {
 
   @Column(nullable = false)
   private String state;
+
+  @NotNull
+  @Column(nullable = false)
+  @CreationTimestamp
+  private Timestamp createdAt;
+
+  @NotNull
+  @Column(nullable = false)
+  @UpdateTimestamp
+  private Timestamp updatedAt;
 }

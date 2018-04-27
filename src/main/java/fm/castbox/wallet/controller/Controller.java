@@ -9,6 +9,9 @@ import fm.castbox.wallet.dto.BalanceDto;
 import fm.castbox.wallet.dto.GeneralResponse;
 import fm.castbox.wallet.dto.TransferRDto;
 import fm.castbox.wallet.dto.TransferQDto;
+import fm.castbox.wallet.enumeration.StatusCodeEnum;
+import fm.castbox.wallet.exception.InvalidParamException;
+import fm.castbox.wallet.exception.NotFoundException;
 import fm.castbox.wallet.service.TransferService;
 import io.swagger.annotations.ApiImplicitParams;
 
@@ -62,8 +65,11 @@ public class Controller {
           notes = "Returns hex encoded address of the user"
   )
   @RequestMapping(value = "/0.1/eth/users/{userId}/address", method = RequestMethod.GET)
-  String getUserAddress(@PathVariable String userId) throws Exception {
-    return contractService.getUserAddress(userId);
+  GeneralResponse<String> getUserAddress(@PathVariable String userId) throws Exception {
+    if (userId.length() != 32) {
+      throw new InvalidParamException(StatusCodeEnum.INVALID_USER_ID, "user_id", "should be 32 byte UUID");
+    }
+    return new GeneralResponse(contractService.getUserAddress(userId));
   }
 
   @ApiOperation(
@@ -152,8 +158,8 @@ public class Controller {
           notes = "Returns a dictionary like {“BOX”: “500”, “ETH”: “100”}")
   @RequestMapping(
           value = "/0.1/eth/users/{userId}/balances", method = RequestMethod.GET)
-  List<BalanceDto> getUserBalances(@PathVariable String userId) throws Exception {
-    return contractService.getUserBalances(userId);
+  GeneralResponse<List<BalanceDto>> getUserBalances(@PathVariable String userId) throws Exception {
+    return new GeneralResponse(contractService.getUserBalances(userId));
   }
 
   @ApiOperation("Get token symbol")
@@ -218,8 +224,12 @@ public class Controller {
 
   @ApiOperation(value = "Get details of a transaction", notes = "id is integer, not txid")
   @RequestMapping(value = "/0.1/eth/transaction/{id}", method = RequestMethod.GET)
-  MappingJacksonValue getTransaction(@PathVariable Long id) throws Exception {
-    return contractService.getTransaction(id);
+  GeneralResponse<Transaction> getTransaction(@PathVariable Long id) throws Exception {
+    Optional<Transaction> tx = contractService.getTransaction(id);
+    if (!tx.isPresent()) {
+      throw new NotFoundException("Transaction", "Not Found");
+    }
+    return new GeneralResponse(tx.get());
   }
 
   @ApiOperation(

@@ -73,4 +73,12 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
                     ex.getMessage(), "NonRepeatableException"), new HttpHeaders(),
             HttpStatus.ACCEPTED, request);
   }
+
+  @ExceptionHandler({NotFoundException.class})
+  public ResponseEntity<Object> handleNotFoundException(NotFoundException ex,
+                                                            WebRequest request) {
+    return handleExceptionInternal(ex, new GeneralResponse(ex.getStatus(),
+                    ex.getMessage(), "NotFoundException"), new HttpHeaders(),
+            HttpStatus.NOT_FOUND, request);
+  }
 }
