@@ -104,8 +104,8 @@ public class TransferServiceImpl implements TransferService {
     Timestamp now = new Timestamp(System.currentTimeMillis());
     Transaction tx = new Transaction(null, symbol, fromAccount.getUserId(),
             fromAccount.getAddress(), toAccount.getUserId(), toAccount.getAddress(),
-            contractService.min2BasicUnit(symbol, transfer_value).toString(), now, note,
-            TransactionEnum.INTERNAL_TYPE, TransactionEnum.DONE_STATE);
+            contractService.min2BasicUnit(symbol, transfer_value).toString(), note,
+            TransactionEnum.INTERNAL_TYPE, TransactionEnum.DONE_STATE, now, now);
 
     ethAccountRepository.save(fromAccount);
     ethAccountRepository.save(toAccount);
@@ -143,8 +143,8 @@ public class TransferServiceImpl implements TransferService {
     Timestamp now = new Timestamp(System.currentTimeMillis());
     Transaction tx =  new Transaction(txHash, symbol, fromAccount.getUserId(),
             fromAccount.getAddress(), null, toAddress,
-            contractService.min2BasicUnit(symbol, transfer_value).toString(), now, note,
-            TransactionEnum.EXTERNAL_TYPE, TransactionEnum.PENDING_STATE);
+            contractService.min2BasicUnit(symbol, transfer_value).toString(), note,
+            TransactionEnum.EXTERNAL_TYPE, TransactionEnum.PENDING_STATE, now, now);
     transactionRepository.save(tx);
   }
 

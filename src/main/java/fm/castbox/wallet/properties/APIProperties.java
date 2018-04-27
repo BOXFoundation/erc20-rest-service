@@ -12,5 +12,9 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties("contentbox.wallet.api")
 public class APIProperties {
-    private String allowedPubkey;
+
+  private String allowedPubkey;
+
+  // when set to be true, skip the sign validation
+  private boolean skipSignValidation;
 }

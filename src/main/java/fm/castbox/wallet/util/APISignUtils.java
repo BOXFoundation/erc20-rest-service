@@ -8,6 +8,7 @@ import java.util.*;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
+import fm.castbox.wallet.enumeration.StatusCodeEnum;
 import fm.castbox.wallet.exception.InvalidParamException;
 import fm.castbox.wallet.properties.APIProperties;
 import fm.castbox.wallet.util.algorithm.ECDSAAlgorithm;
@@ -101,13 +102,12 @@ public class APISignUtils {
   }
 
   public static void verifySignedObject(Object objectWithSignField) throws Exception {
+    if (apiProperties.isSkipSignValidation()) { return; }
     String toSignStr = APISignUtils.prepareStrToSign(objectWithSignField, "sign");
     String objectSign = (String) PropertyUtils.getProperty(objectWithSignField, "sign");
     boolean isSignValid = APISignUtils.verifySign(toSignStr, objectSign);
     if (!isSignValid) {
-      log.info("toSignStr is " + toSignStr);
-      // TODO: uncomment below after debugging
-//      throw new InvalidParamException("Object Sign", "srcStr is " + toSignStr);
+      throw new InvalidParamException(StatusCodeEnum.INVALID_SIGN, "sign", "target is: " + toSignStr);
     }
   }
 

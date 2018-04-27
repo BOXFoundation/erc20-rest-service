@@ -6,6 +6,8 @@ public class StatusCodeEnum {
 
   // General Errors Starts with 10, could be 10xxx;
   public static final int UNSUPPORTED_SYMBOL = 10001;
+  public static final int INVALID_USER_ID = 10002;
+  public static final int INVALID_SIGN = 10003;
 
   // Transfer Related Errors Starts with 20, could be 20xxx;
   public static final int REPEAT_TRANSFER_REQ = 20001;

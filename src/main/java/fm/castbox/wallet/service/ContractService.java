@@ -129,8 +129,8 @@ public class ContractService {
         return;
       }
       Timestamp now = new Timestamp(System.currentTimeMillis());
-      transactionRepository.save(new Transaction(txId, tokenSymbol, "" /* fromUserId */, from,
-          "" /* toUserId */, to, amountStr, now, "", TransactionEnum.EXTERNAL_TYPE, TransactionEnum.DONE_STATE));
+      transactionRepository.save(new Transaction(txId, tokenSymbol, null , from,
+          null, to, amountStr,  null, TransactionEnum.EXTERNAL_TYPE, TransactionEnum.DONE_STATE, now, now));
     }
   }
 
@@ -396,12 +396,8 @@ public class ContractService {
     return transactionRepository.findByAddress(accountOptional.get().getAddress(), pageable);
   }
 
-  public MappingJacksonValue getTransaction(Long id) {
-    Transaction tx = transactionRepository.findById(id).get();
-    MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(tx);
-    SimpleFilterProvider filters = new SimpleFilterProvider().setFailOnUnknownId(false);
-    mappingJacksonValue.setFilters(filters);
-    return mappingJacksonValue;
+  public Optional<Transaction> getTransaction(Long id) {
+    return transactionRepository.findById(id);
   }
 
   private HumanStandardToken load(String contractAddress) {
