@@ -14,6 +14,8 @@ import fm.castbox.wallet.exception.InvalidParamException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.validator.constraints.Length;
 
 // account on Ethereum, including eth and ERC-20 tokens
@@ -49,10 +51,12 @@ public class EthAccount {
 
   @NotNull
   @Column(nullable = false)
+  @CreationTimestamp
   private Timestamp createdAt;
 
   @NotNull
   @Column(nullable = false)
+  @UpdateTimestamp
   private Timestamp updatedAt;
 
   public BigInteger getEthBalance() {
