@@ -12,7 +12,7 @@ For Quorum, the RESTful semantics are identical, with the exception that if you 
 ### Launch a MySQL instance
 
     docker volume rm contentbox-mysql
-    docker run --name contentbox-mysql --mount source=contentbox-mysql,target=/var/lib/mysql -e MYSQL_USER=contentbox -e MYSQL_PASSWORD=ThePassw0rd -e MYSQL_DATABASE=wallet -e MYSQL_ALLOW_EMPTY_PASSWORD=yes -p 3306:3306 -d mysql
+    docker run --name contentbox-mysql --mount source=contentbox-mysql,target=/var/lib/mysql -e MYSQL_USER=contentbox -e MYSQL_PASSWORD=ThePassw0rd -e MYSQL_DATABASE=wallet -e MYSQL_ALLOW_EMPTY_PASSWORD=yes -p 3306:3306 -d mysql:5
 
 The command above will launch a MySQL instance, create a table `wallet`, add a user `contentbox` and set its password automatically. Make sure the username and password are identical with `src/main/resources/application.yml`.
 
